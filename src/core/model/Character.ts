@@ -1,0 +1,79 @@
+import { StatBlock, type StatKey } from "./StatBlock";
+import { ENERGY_MAX } from "../config";
+
+export type Gender = "female" | "male";
+
+/**
+ * Why a character stores a pre-rolled lifespan: death must be decided by age
+ * plus yearly risk, and the fixed ceiling keeps a save file stable across
+ * sessions instead of rerolling it on every load.
+ */
+export type DeathCause = "oldAge" | "illness" | "accident";
+
+export interface CharacterSpec {
+  readonly givenName: string;
+  readonly familyName: string;
+  readonly gender: Gender;
+  readonly birthYear: number;
+  readonly maxLifespan: number;
+  readonly money: number;
+  /** 0-100 fatigue meter. Defaults to full; carried across years. */
+  readonly energy?: number;
+  readonly stats?: Partial<Record<StatKey, number>>;
+}
+
+/**
+ * One person in the current life. Age is derived from the game year.
+ * The family name is a field of its own because realistic surname rules
+ * change it on marriage (see ADR 0004), so it cannot stay part of the
+ * immutable given name.
+ */
+export class Character {
+  readonly givenName: string;
+  /** Changes for a woman who marries, and for her children at birth. */
+  familyName: string;
+  readonly gender: Gender;
+  readonly birthYear: number;
+  readonly maxLifespan: number;
+  readonly stats: StatBlock;
+  money: number;
+  /** Tiring actions drain this; rest restores it. Never leaves 0..100. */
+  energy: number;
+  alive = true;
+  deathCause: DeathCause | null = null;
+
+  constructor(spec: CharacterSpec) {
+    this.givenName = spec.givenName;
+    this.familyName = spec.familyName;
+    this.gender = spec.gender;
+    this.birthYear = spec.birthYear;
+    this.maxLifespan = spec.maxLifespan;
+    this.money = spec.money;
+    this.energy = Math.min(ENERGY_MAX, Math.max(0, spec.energy ?? ENERGY_MAX));
+    this.stats = new StatBlock(spec.stats);
+  }
+
+  /** Full name as shown in the HUD and in the biography. */
+  get name(): string {
+    return `${this.givenName} ${this.familyName}`;
+  }
+
+  ageAt(year: number): number {
+    return Math.max(0, year - this.birthYear);
+  }
+
+  die(cause: DeathCause): void {
+    this.alive = false;
+    this.deathCause = cause;
+  }
+
+  /** Money never drops below zero; debt is out of scope for the MVP. */
+  addMoney(amount: number): void {
+    this.money = Math.max(0, this.money + amount);
+  }
+
+  /** Energy clamps to 0..100, the same spirit as money never going negative. */
+  changeEnergy(delta: number): void {
+    this.energy = Math.min(ENERGY_MAX, Math.max(0, this.energy + delta));
+  }
+}
