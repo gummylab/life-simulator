@@ -291,8 +291,8 @@
   - เกณฑ์จบ: ไม่มี error หรือข้อความ UI ตกหล่นในกรณีใดๆ
 
 - [ ] Task 4.4: deploy ขึ้น GitHub Pages
-  - ทำ: สร้าง GitHub repo, GitHub Actions workflow build ด้วย Bun แล้ว deploy dist ขึ้น Pages, ตั้ง `base` ของ Vite ให้ตรง path ของ repo
-  - เกณฑ์จบ: เปิดลิงก์ Pages เล่นเกมได้จริงบนเบราว์เซอร์ที่ไม่ได้เปิด localhost
+  - ทำ: สร้าง `.github/workflows/deploy.yml` แล้ว (test ก่อนค่อย build แล้ว deploy ด้วย actions/deploy-pages) `vite.config.ts` ตั้ง `base: "./"` ไว้แล้วไม่ต้องแก้เพิ่ม คงเหลือขั้นของผู้เล่นคือเปิด Settings > Pages > Source = GitHub Actions แล้ว commit และ push
+  - เกณฑ์จบ: เปิดลิงก์ Pages เล่นเกมได้จริงบนเบราว์เซอร์ที่ไม่ได้เปิด localhost (url เป้าหมาย: https://onlygummy-spark.github.io/life-simulator/)
 
 - [ ] Task 4.5: README
   - ทำ: อธิบายวิธีรัน (`bun install`, `bun run dev`), วิธี test (`bun test`), วิธี build และ deploy, วิธีเพิ่มเหตุการณ์เองใน `src/content/`
