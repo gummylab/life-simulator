@@ -1,0 +1,5 @@
+[test]
+# Browser globals (document, window, localStorage) must exist before the
+# first module that touches them is imported, so the whole suite shares one
+# happy-dom instance installed here.
+preload = ["./tests/setup-dom.ts"]

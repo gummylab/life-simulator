@@ -23,6 +23,11 @@ export class BtcPrice {
     private readonly seed: number,
   ) {}
 
+  /** The live rate the whole simulation drifts from, kept for the save file. */
+  get base(): number {
+    return this.baseRateUsd;
+  }
+
   /** Rate for one game year, in USD. */
   rateForYear(gameYear: number): number {
     if (gameYear <= this.startYear) {

@@ -1,3 +1,6 @@
+import { html, type TemplateResult } from "lit";
+import { icon } from "./icons";
+
 const GENDER_CHOICES: readonly { value: string; label: string }[] = [
   { value: "random", label: "สุ่มให้" },
   { value: "female", label: "หญิง" },
@@ -10,23 +13,34 @@ const GENDER_CHOICES: readonly { value: string; label: string }[] = [
  * Empty fields are filled in by the game right before the life starts.
  */
 export class BirthSetupView {
-  render(): string {
+  render(): TemplateResult {
     const genderChoices = GENDER_CHOICES.map(
-      (choice, index) => `
+      (choice, index) => html`
         <label class="choice">
-          <input type="radio" name="gender" value="${choice.value}" ${index === 0 ? "checked" : ""} />
+          <input type="radio" name="gender" value=${choice.value} ?checked=${index === 0} />
           <span>${choice.label}</span>
-        </label>`,
-    ).join("");
+        </label>
+      `,
+    );
 
-    return `
+    return html`
       <section class="panel setup">
-        <h2>ตั้งค่าก่อนเกิด</h2>
+        <div class="setup-brand">
+          life simulator <span>by onlygummy</span>
+        </div>
+        <h2>${icon("Baby", 18)}ตั้งค่าก่อนเกิด</h2>
+        <p class="muted">หนึ่งชีวิตเดินไปข้างหน้าปีละหนึ่งก้าว คุณตั้งชื่อคนแรกของตระกูลได้เลย</p>
         <form id="birth-setup">
           <div class="field">
             <label for="given-name">ชื่อ</label>
             <div class="field-row">
-              <input id="given-name" name="givenName" type="text" placeholder="เว้นว่างเพื่อให้สุ่มให้" autocomplete="off" />
+              <input
+                id="given-name"
+                name="givenName"
+                type="text"
+                placeholder="เว้นว่างเพื่อให้สุ่มให้"
+                autocomplete="off"
+              />
               <button type="button" data-do="random-name">สุ่มให้</button>
             </div>
           </div>
@@ -34,7 +48,13 @@ export class BirthSetupView {
           <div class="field">
             <label for="family-name">ชื่อตระกูล</label>
             <div class="field-row">
-              <input id="family-name" name="familyName" type="text" placeholder="เว้นว่างเพื่อให้สุ่มให้" autocomplete="off" />
+              <input
+                id="family-name"
+                name="familyName"
+                type="text"
+                placeholder="เว้นว่างเพื่อให้สุ่มให้"
+                autocomplete="off"
+              />
             </div>
           </div>
 
@@ -43,8 +63,9 @@ export class BirthSetupView {
             <div class="choices">${genderChoices}</div>
           </div>
 
-          <button type="submit" class="advance">เริ่มตระกูล</button>
+          <button type="submit" class="advance">${icon("Sparkles", 18)}เริ่มตระกูล</button>
         </form>
-      </section>`;
+      </section>
+    `;
   }
 }

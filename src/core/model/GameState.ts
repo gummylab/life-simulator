@@ -20,6 +20,8 @@ export interface GameStateSpec {
   readonly timeLeft: number;
   /** Time the school or job already claimed at the start of the year. */
   readonly committedTime?: number;
+  /** Life log restored from a save, oldest first. */
+  readonly timeline?: readonly TimelineEntry[];
 }
 
 /**
@@ -36,7 +38,7 @@ export class GameState {
   founderFamilyName: string;
   timeLeft: number;
   committedTime: number;
-  private readonly timeline: TimelineEntry[] = [];
+  private readonly entries: TimelineEntry[] = [];
 
   constructor(spec: GameStateSpec) {
     this.year = spec.year;
@@ -46,11 +48,12 @@ export class GameState {
     this.founderFamilyName = spec.founderFamilyName;
     this.timeLeft = spec.timeLeft;
     this.committedTime = spec.committedTime ?? 0;
+    this.entries = [...(spec.timeline ?? [])];
   }
 
   /** Appends a line to the life log using the current year and age. */
   record(text: string): void {
-    this.timeline.push({
+    this.entries.push({
       year: this.year,
       age: this.character.ageAt(this.year),
       text,
@@ -59,6 +62,11 @@ export class GameState {
 
   /** Newest first, ready for the timeline view to render. */
   get history(): readonly TimelineEntry[] {
-    return [...this.timeline].reverse();
+    return [...this.entries].reverse();
+  }
+
+  /** Oldest first, the order a save file stores the log in. */
+  get timeline(): readonly TimelineEntry[] {
+    return this.entries;
   }
 }

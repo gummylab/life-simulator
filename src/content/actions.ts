@@ -9,6 +9,26 @@ import type { PlayerAction } from "../core/model/PlayerAction";
  */
 export const ACTIONS: readonly PlayerAction[] = [
   {
+    id: "toys",
+    label: "เล่นของเล่น",
+    minAge: 0,
+    maxAge: 5,
+    timeCost: 20,
+    energyCost: 10,
+    resultText: "นั่งเล่นของเล่นเพลินทั้งวัน สนุกและได้เรียนรู้",
+    effects: { stats: { happiness: 3, smarts: 1 } },
+  },
+  {
+    id: "story",
+    label: "ฟังนิทาน",
+    minAge: 0,
+    maxAge: 6,
+    timeCost: 15,
+    energyCost: 5,
+    resultText: "ให้พ่อแม่เล่านิทานให้ฟัง สนุกและจำเรื่องได้",
+    effects: { stats: { smarts: 2, happiness: 1 } },
+  },
+  {
     id: "rest",
     label: "พักผ่อนอยู่บ้าน",
     minAge: 0,

@@ -5,6 +5,7 @@ import { SeededRng } from "./rng/SeededRng";
 import { AgingSystem } from "./systems/AgingSystem";
 import { DeathSystem } from "./systems/DeathSystem";
 import {
+  allowanceForAge,
   ENERGY_BLOCK_THRESHOLD,
   ENERGY_YEAR_RESTORE,
   timeBudgetForAge,
@@ -143,6 +144,13 @@ export class Game {
     // New year, new budget. Committed school or work time comes off first.
     this.state.timeLeft = Math.max(0, timeBudgetForAge(age) - this.state.committedTime);
     character.changeEnergy(ENERGY_YEAR_RESTORE);
+
+    // The family still supports the young, and stops once they can earn.
+    const allowance = allowanceForAge(age);
+    if (character.alive && allowance > 0) {
+      character.addMoney(allowance);
+      this.state.record(`ได้ค่าขนมจากทางบ้าน ${allowance} BTC`);
+    }
 
     this.syncRngState();
     return { age, died: outcome.died, cause: outcome.cause };

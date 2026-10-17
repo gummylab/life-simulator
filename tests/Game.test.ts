@@ -59,9 +59,10 @@ describe("Game", () => {
     const outcome = game.performAction(study);
     expect(outcome.accepted).toBe(true);
     expect(game.character.stats.get("smarts")).toBe(59);
-    // 0.002 earned earlier minus the 0.001 the action costs
-    expect(game.character.money).toBe(0.001);
-    expect(game.gameState.history).toHaveLength(1);
+    // 0.0002 allowance at age 6 + 0.002 earned earlier - 0.001 the action costs
+    expect(game.character.money).toBeCloseTo(0.0012, 12);
+    // the age-6 allowance line came first, the action line sits on top
+    expect(game.gameState.history).toHaveLength(2);
     expect(game.gameState.history[0]?.text).toBe("นั่งอ่านหนังสือทั้งวัน");
   });
 
@@ -86,9 +87,27 @@ describe("Game", () => {
     for (let i = 0; i < 7; i += 1) {
       game.advanceYear();
     }
+    // two years of childhood allowance (ages 6 and 7) still cannot cover it
     game.character.addMoney(0.00005);
     expect(game.performAction(study)).toEqual({ accepted: false, reason: "money" });
-    expect(game.character.money).toBe(0.00005);
+    expect(game.character.money).toBeCloseTo(0.00045, 12);
+  });
+
+  test("the family sends an age-based allowance every year", () => {
+    const game = makeGame();
+    for (let i = 0; i < 6; i += 1) {
+      game.advanceYear();
+    }
+    // nothing under 6, then 0.0002 starting at age 6
+    expect(game.character.money).toBeCloseTo(0.0002, 12);
+
+    for (let i = 0; i < 8; i += 1) {
+      game.advanceYear();
+    }
+    // ages 7 to 13 add 0.0002 each, age 14 jumps to 0.0005
+    expect(game.character.money).toBeCloseTo(0.0021, 12);
+    const texts = game.gameState.history.map((entry) => entry.text);
+    expect(texts.some((text) => text.startsWith("ได้ค่าขนมจากทางบ้าน"))).toBe(true);
   });
 
   test("the character dies once the lifespan is reached", () => {

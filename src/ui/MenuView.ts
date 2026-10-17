@@ -1,6 +1,7 @@
+import { html, nothing, type TemplateResult } from "lit";
 import type { PlayerAction } from "../core/model/PlayerAction";
 import type { ActionBlockReason } from "../core/Game";
-import { escapeHtml } from "./format";
+import { actionIcon, icon } from "./icons";
 
 /** One action plus why it is blocked, or null when it can run. */
 export interface MenuEntry {
@@ -15,57 +16,66 @@ const REASON_LABELS: Record<ActionBlockReason, string> = {
   money: "เงินไม่พอ",
 };
 
-/** Compact cost line shown under every action label. */
-function costLine(action: PlayerAction): string {
-  const parts = [`${action.timeCost} เวลา`];
+/** Cost and payout chips shown on every action card. */
+function costChips(action: PlayerAction): TemplateResult[] {
+  const chips: TemplateResult[] = [
+    html`<span class="chip">${action.timeCost} เวลา</span>`,
+  ];
   if (action.energyCost !== undefined && action.energyCost > 0) {
-    parts.push(`-${action.energyCost} พลัง`);
+    chips.push(html`<span class="chip chip-cost">-${action.energyCost} พลัง</span>`);
   }
   if (action.energyRestore !== undefined) {
-    parts.push(`+${action.energyRestore} พลัง`);
+    chips.push(html`<span class="chip chip-gain">+${action.energyRestore} พลัง</span>`);
   }
   const money = action.effects.money;
   if (money !== undefined && money !== 0) {
-    parts.push(`${money > 0 ? "+" : ""}${money} BTC`);
+    chips.push(
+      html`<span class="chip ${money > 0 ? "chip-gain" : "chip-cost"}"
+        >${money > 0 ? "+" : ""}${money} BTC</span
+      >`,
+    );
   }
-  return parts.join(" · ");
+  return chips;
 }
 
 /**
- * Action menu for the current year plus the button that ends it.
- * Blocked actions stay visible but disabled, each with the reason the
- * game engine reported, so the player learns why without guessing.
+ * Action menu for the current year. Blocked actions stay visible but
+ * disabled, each with the reason the engine reported, so the player
+ * learns why without guessing. The button that ends the year lives in
+ * the bottom dock instead (App).
  */
 export class MenuView {
   constructor(private readonly entries: readonly MenuEntry[]) {}
 
-  render(): string {
+  render(): TemplateResult {
     const buttons =
       this.entries.length === 0
-        ? `<p class="muted">ยังไม่มีกิจกรรมที่ทำได้ในวัยนี้</p>`
-        : this.entries
-            .map(({ action, reason }) => {
-              const blocked = reason !== null;
-              return `
-                <button type="button" class="action" data-do="${escapeHtml(action.id)}"${
-                  blocked ? " disabled" : ""
-                }>
-                  <span class="action-label">${escapeHtml(action.label)}</span>
-                  <span class="action-cost">${escapeHtml(costLine(action))}</span>
-                  ${
-                    blocked && reason !== null
-                      ? `<span class="action-reason">${REASON_LABELS[reason]}</span>`
-                      : ""
-                  }
-                </button>`;
-            })
-            .join("");
+        ? html`<p class="muted">ยังไม่มีกิจกรรมที่ทำได้ในวัยนี้</p>`
+        : this.entries.map(
+            ({ action, reason }) => html`
+              <button
+                type="button"
+                class="action"
+                data-do=${action.id}
+                ?disabled=${reason !== null}
+              >
+                <span class="action-icon">${actionIcon(action.id)}</span>
+                <span class="action-main">
+                  <span class="action-label">${action.label}</span>
+                  <span class="action-cost">${costChips(action)}</span>
+                </span>
+                ${reason !== null
+                  ? html`<span class="action-reason">${REASON_LABELS[reason]}</span>`
+                  : nothing}
+              </button>
+            `,
+          );
 
-    return `
+    return html`
       <section class="panel">
-        <h2>สิ่งที่ทำได้ในปีนี้</h2>
+        <h2>${icon("ListChecks", 18)}สิ่งที่ทำได้ในปีนี้</h2>
         <div class="actions">${buttons}</div>
-        <button type="button" class="advance" data-do="advance">อายุ +1 ปี</button>
-      </section>`;
+      </section>
+    `;
   }
 }

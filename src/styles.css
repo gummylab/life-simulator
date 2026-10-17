@@ -1,61 +1,144 @@
+/* Design tokens: a dark game theme with one neon accent.
+   The engine stays theme-agnostic; every color lives here. */
 :root {
-  --bg: #f7f5f0;
-  --panel: #ffffff;
-  --ink: #1c1b19;
-  --muted: #6b675f;
-  --line: #ddd8cd;
-  --accent: #2f6f4f;
+  --bg: #0a0e16;
+  --panel: #131a27;
+  --panel-2: #1a2334;
+  --ink: #e9edf5;
+  --muted: #94a1b6;
+  --line: #263147;
+  --accent: #6ee7a0;
+  --accent-ink: #052415;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --radius: 14px;
+  color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 body {
   margin: 0;
+  display: flex;
+  justify-content: center;
   background: var(--bg);
   color: var(--ink);
   font-family: "Kanit", system-ui, sans-serif;
   font-weight: 300;
-  line-height: 1.7;
+  line-height: 1.6;
 }
 
+/* The whole game lives inside a phone-sized shell. On a real phone it
+   fills the screen; on desktop the media query below draws a frame. */
 #app {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 16px;
+  width: 100%;
+  max-width: 440px;
+  height: 100dvh;
+  display: flex;
 }
 
-/* Top bar with identity, money and the four life stats */
-.hud {
-  position: sticky;
-  top: 0;
-  z-index: 10;
+.device {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* Fake phone status bar; only visible inside the desktop frame. */
+.device-bar {
+  display: none;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 22px 2px;
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 12px 16px;
-  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.device-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.screen {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 12px 20px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+/* Top card: identity, money, vitals and the four life stats */
+.hud {
+  flex: none;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 14px;
+}
+
+.hud-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
 .hud-title {
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
+  font-size: 0.85rem;
+}
+
+.hud-by {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-weight: 300;
+  font-size: 0.75rem;
 }
 
 .hud-line {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  align-items: baseline;
-  margin-top: 4px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.hud-name {
+  font-weight: 400;
 }
 
 .hud-money {
-  font-size: 0.9rem;
-  gap: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 1.05rem;
+}
+
+.hud-money .icon {
+  color: var(--accent);
 }
 
 .hud-money .muted {
@@ -63,39 +146,85 @@ body {
 }
 
 .hud-vitals {
-  font-size: 0.9rem;
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.meter {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.meter-label {
+  color: var(--muted);
+}
+
+.meter-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.meter-time {
+  background: var(--accent);
+}
+
+.meter-energy {
+  background: var(--warn);
+}
+
+.meter-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
 }
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
   margin-top: 10px;
 }
 
 .stat {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 8px;
   align-items: center;
-  font-size: 0.9rem;
+  gap: 8px;
+  font-size: 0.78rem;
 }
 
 .stat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .stat-bar {
-  background: var(--line);
+  height: 6px;
   border-radius: 999px;
-  height: 8px;
+  background: var(--line);
   overflow: hidden;
 }
 
 .stat-fill {
   display: block;
   height: 100%;
+  border-radius: 999px;
   background: var(--accent);
 }
 
@@ -103,94 +232,204 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.hud-rate {
+  margin-top: 8px;
+  font-size: 0.72rem;
+}
+
+/* Panels */
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 16px;
-  margin-bottom: 16px;
+  border-radius: var(--radius);
+  padding: 14px;
 }
 
 .panel h2 {
-  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.98rem;
   font-weight: 500;
   margin: 0 0 12px;
 }
 
+.panel h2 .icon {
+  color: var(--accent);
+}
+
+/* Small pill used for costs, years and stats */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.chip-cost {
+  color: var(--danger);
+}
+
+.chip-gain {
+  color: var(--accent);
+}
+
+/* Action cards */
 .actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .action {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  text-align: left;
-}
-
-.action-cost {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-.action-reason {
-  font-size: 0.75rem;
-  color: #b45309;
-}
-
-.action:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.action:disabled:hover {
-  border-color: var(--line);
-}
-
-button {
-  font-family: inherit;
-  font-size: 0.95rem;
-  border-radius: 8px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 10px;
+  padding: 12px 10px;
+  border-radius: var(--radius);
   border: 1px solid var(--line);
-  background: var(--panel);
+  background: var(--panel-2);
   color: var(--ink);
-  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  text-align: left;
   cursor: pointer;
 }
 
-button:hover {
-  border-color: var(--accent);
+.action-icon {
+  color: var(--accent);
+  margin-top: 2px;
 }
 
-.advance {
-  display: block;
-  width: 100%;
-  margin-top: 14px;
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #ffffff;
+.action-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.action-label {
   font-weight: 400;
 }
 
+.action-cost {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.action-cost .chip {
+  padding: 1px 7px;
+  font-size: 0.68rem;
+}
+
+.action-reason {
+  grid-column: 1 / -1;
+  font-size: 0.72rem;
+  color: var(--warn);
+}
+
+.action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Bottom dock: year button above the three-tab nav */
+.dock {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px calc(8px + env(safe-area-inset-bottom));
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
+
+.advance {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.tab[aria-current] {
+  color: var(--accent);
+}
+
+/* Transient year-change toast, floating above the dock */
+.toast {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 148px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: var(--panel-2);
+  color: var(--accent);
+  font-size: 0.85rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  animation: toast-in 0.22s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Life log */
 .timeline {
   list-style: none;
   margin: 0;
   padding: 0;
-  /* The log grows for decades; cap its height so the page itself
-     never needs to scroll and let the panel scroll on its own. */
-  max-height: 40vh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
 }
 
 .timeline li {
   padding: 8px 0;
   border-bottom: 1px dashed var(--line);
+  font-size: 0.9rem;
 }
 
 .timeline li:last-child {
@@ -199,8 +438,24 @@ button:hover {
 
 .entry-year {
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   margin-right: 8px;
+}
+
+.entry-count {
+  color: var(--accent);
+  font-size: 0.8rem;
+  margin-left: 6px;
+}
+
+.onboarding ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.88rem;
+}
+
+.onboarding li {
+  margin: 6px 0;
 }
 
 .muted {
@@ -208,6 +463,18 @@ button:hover {
 }
 
 /* Birth setup form */
+.setup-brand {
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  margin-bottom: 10px;
+}
+
+.setup-brand span {
+  color: var(--muted);
+  font-weight: 300;
+  font-size: 0.85rem;
+}
+
 .setup .field {
   margin-bottom: 16px;
 }
@@ -227,18 +494,29 @@ button:hover {
 
 .setup input[type="text"] {
   flex: 1;
+  min-width: 0;
   font-family: inherit;
   font-size: 1rem;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
+  border-radius: 10px;
+  background: var(--panel-2);
   color: var(--ink);
 }
 
 .setup input[type="text"]:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+.setup button {
+  font-family: inherit;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--ink);
+  padding: 8px 14px;
+  cursor: pointer;
 }
 
 .choices {
@@ -248,38 +526,103 @@ button:hover {
 }
 
 .choice {
-  display: flex !important;
+  display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--ink) !important;
-  font-size: 0.95rem !important;
-  margin-bottom: 0 !important;
+  color: var(--ink);
+  font-size: 0.95rem;
 }
 
 .choice input {
   accent-color: var(--accent);
 }
 
+/* Death summary */
 .summary ul {
   margin: 0 0 8px;
-  padding-left: 20px;
+  padding-left: 18px;
 }
 
 .final-stats {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 10px 16px;
   list-style: none;
-  padding: 0 !important;
+  margin: 12px 0 0;
+  padding: 0;
   color: var(--muted);
+  font-size: 0.88rem;
 }
 
-@media (max-width: 520px) {
-  #app {
-    padding: 10px;
+.final-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.final-stat .icon {
+  color: var(--accent);
+}
+
+/* Shared button behavior with a light game feel */
+button {
+  transition:
+    transform 0.1s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Desktop: simulate a phone in the middle of the screen */
+@media (min-width: 760px) {
+  body {
+    align-items: center;
+    padding: 24px 0;
+    background: radial-gradient(900px 480px at 50% -10%, #16233a 0%, var(--bg) 60%);
   }
 
-  .final-stats {
-    flex-wrap: wrap;
-    gap: 8px;
+  #app {
+    height: min(880px, calc(100dvh - 48px));
+  }
+
+  .device {
+    border: 10px solid #04060b;
+    border-radius: 38px;
+    outline: 1px solid #2a3650;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
+    overflow: hidden;
+  }
+
+  .device-bar {
+    display: flex;
+  }
+}
+
+/* Very narrow phones: keep two stat columns but shrink the type */
+@media (max-width: 380px) {
+  .stat {
+    font-size: 0.72rem;
+    gap: 6px;
+  }
+
+  .action {
+    font-size: 0.85rem;
   }
 }
