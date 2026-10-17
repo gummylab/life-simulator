@@ -1,9 +1,15 @@
 import { GameState } from "./model/GameState";
 import type { Character, DeathCause } from "./model/Character";
-import type { PlayerAction } from "./model/PlayerAction";
+import type { PlayerAction, SpecialAction } from "./model/PlayerAction";
+import type { GameContent } from "./model/GameContent";
+import type { JobSpec } from "./model/JobSpec";
 import { SeededRng } from "./rng/SeededRng";
 import { AgingSystem } from "./systems/AgingSystem";
+import { CareerSystem, type JobBlockReason } from "./systems/CareerSystem";
 import { DeathSystem } from "./systems/DeathSystem";
+import { EducationSystem } from "./systems/EducationSystem";
+import { EventEngine } from "./systems/EventEngine";
+import { RelationshipSystem } from "./systems/RelationshipSystem";
 import {
   allowanceForAge,
   ENERGY_BLOCK_THRESHOLD,
@@ -18,7 +24,15 @@ export interface YearResult {
 }
 
 /** Why an action cannot run right now. Feeds the menu's block messages. */
-export type ActionBlockReason = "age" | "time" | "tired" | "money";
+export type ActionBlockReason =
+  | "age"
+  | "time"
+  | "tired"
+  | "money"
+  | "partner"
+  | "taken"
+  | "spouse"
+  | "done";
 
 export type PerformActionResult =
   | {
@@ -39,11 +53,23 @@ export class Game {
   private readonly rng: SeededRng;
   private readonly aging: AgingSystem;
   private readonly death: DeathSystem;
+  private readonly education: EducationSystem;
+  private readonly career: CareerSystem;
+  private readonly relationships: RelationshipSystem;
+  private readonly events: EventEngine;
 
-  constructor(private readonly state: GameState) {
+  /**
+   * content stays optional so a Game built without it (older tests,
+   * minimal harnesses) behaves exactly like the pre-Phase-2 engine.
+   */
+  constructor(private readonly state: GameState, private readonly content: GameContent | null = null) {
     this.rng = new SeededRng(state.rngState);
     this.aging = new AgingSystem(this.rng);
     this.death = new DeathSystem(this.rng);
+    this.education = new EducationSystem();
+    this.career = new CareerSystem();
+    this.relationships = new RelationshipSystem();
+    this.events = new EventEngine(this.rng);
   }
 
   get gameState(): GameState {
@@ -52,6 +78,16 @@ export class Game {
 
   get character(): Character {
     return this.state.character;
+  }
+
+  /** World and catalog data; null when the game runs without content. */
+  get gameContent(): GameContent | null {
+    return this.content;
+  }
+
+  /** Thai school-stage line for the HUD, e.g. "ชั้นมัธยมปีที่ 3". */
+  stageLabel(): string {
+    return this.education.stageLabel(this.state);
   }
 
   get age(): number {
@@ -91,7 +127,27 @@ export class Game {
     if (moneyEffect < 0 && this.state.character.money + moneyEffect < 0) {
       return "money";
     }
-    return null;
+    return this.specialBlockReason(action.special ?? null);
+  }
+
+  /** Extra gates for the Phase 2 special actions. */
+  private specialBlockReason(special: SpecialAction | null): ActionBlockReason | null {
+    const family = this.state.character.family;
+    switch (special) {
+      case "enroll-university":
+        return this.state.character.education.enrolledUniversity ? "done" : null;
+      case "date":
+        return family.partner !== null ? "taken" : null;
+      case "marry":
+        if (family.partner === null) return "partner";
+        return family.married ? "done" : null;
+      case "divorce":
+        return family.married ? null : "partner";
+      case "have-child":
+        return family.married ? null : "spouse";
+      default:
+        return null;
+    }
   }
 
   /**
@@ -117,7 +173,12 @@ export class Game {
       character.addMoney(money);
     }
 
-    this.state.record(action.resultText);
+    // Special actions delegate to a system; the system logs its own line.
+    if (action.special === undefined) {
+      this.state.record(action.resultText);
+    } else {
+      this.runSpecial(action.special);
+    }
 
     if (this.state.timeLeft <= 0) {
       this.state.record("ปีนี้หมดเวลา");
@@ -128,11 +189,76 @@ export class Game {
     return { accepted: true, yearEnded: null };
   }
 
-  /** Moves the calendar forward one year and resolves aging plus death. */
+  /** Sends a special action to its Phase 2 system. */
+  private runSpecial(special: SpecialAction): void {
+    const character = this.state.character;
+    switch (special) {
+      case "enroll-university":
+        character.education.enrolledUniversity = true;
+        this.state.record("วางแผนเรียนต่อมหาวิทยาลัย");
+        break;
+      case "date":
+        this.withContent((content) => this.relationships.date(this.state, content, this.rng));
+        break;
+      case "marry":
+        this.relationships.marry(this.state);
+        break;
+      case "divorce":
+        this.relationships.divorce(this.state);
+        break;
+      case "have-child":
+        this.withContent((content) => this.relationships.haveChild(this.state, content, this.rng));
+        break;
+    }
+  }
+
+  /** Runs the callback only when content was injected. */
+  private withContent(run: (content: GameContent) => void): void {
+    if (this.content !== null) {
+      run(this.content);
+    }
+  }
+
+  /** Whether this job can be taken right now, and why not when refused. */
+  jobBlockReason(spec: JobSpec): JobBlockReason | null {
+    return this.career.canApply(this.state, spec);
+  }
+
+  /** Applies for a job the player picked from the jobs panel. */
+  applyForJob(spec: JobSpec): boolean {
+    if (this.content === null || this.career.canApply(this.state, spec) !== null) {
+      return false;
+    }
+    this.career.apply(this.state, this.content, spec);
+    this.syncRngState();
+    return true;
+  }
+
+  /** Quits the current job; next year's budget comes back whole. */
+  quitJob(): void {
+    if (this.content === null || this.state.character.job.id === null) {
+      return;
+    }
+    this.career.leaveJob(this.state, this.content, "ออกจากงาน");
+    this.syncRngState();
+  }
+
+  /** Moves the calendar forward one year and resolves the year's systems. */
   advanceYear(): YearResult {
     this.state.year += 1;
     const age = this.age;
     const character = this.state.character;
+
+    // New year, new budget: school and work claim their time first.
+    if (character.alive && this.content !== null) {
+      this.state.committedTime = 0;
+      this.education.startYear(this.state, this.content);
+      this.career.startYear(this.state, this.content);
+      const eventText = this.events.fire(this.state, this.content);
+      if (eventText !== null) {
+        this.state.record(eventText);
+      }
+    }
 
     this.aging.advance(character, age);
     const outcome = this.death.check(character, age);
@@ -141,7 +267,6 @@ export class Game {
       character.die(outcome.cause);
     }
 
-    // New year, new budget. Committed school or work time comes off first.
     this.state.timeLeft = Math.max(0, timeBudgetForAge(age) - this.state.committedTime);
     character.changeEnergy(ENERGY_YEAR_RESTORE);
 

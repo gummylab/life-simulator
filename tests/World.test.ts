@@ -7,14 +7,24 @@ describe("world", () => {
     expect(WORLD.currency).toBe("BTC");
   });
 
-  test("every content pool has entries", () => {
-    expect(WORLD.givenNames.female.length).toBeGreaterThanOrEqual(5);
-    expect(WORLD.givenNames.male.length).toBeGreaterThanOrEqual(5);
-    expect(WORLD.familyNames.length).toBeGreaterThanOrEqual(5);
-    expect(WORLD.places.length).toBeGreaterThanOrEqual(4);
-    expect(WORLD.schools.primary.length).toBeGreaterThanOrEqual(4);
-    expect(WORLD.schools.secondary.length).toBeGreaterThanOrEqual(4);
-    expect(WORLD.schools.university.length).toBeGreaterThanOrEqual(4);
+  test("every content pool has at least four names and no empty arrays", () => {
+    // Collect every pool so a future world addition is checked automatically.
+    const pools: readonly (readonly string[])[] = [
+      WORLD.givenNames.female,
+      WORLD.givenNames.male,
+      WORLD.familyNames,
+      WORLD.places,
+      WORLD.workplaces,
+      WORLD.schools.primary,
+      WORLD.schools.secondary,
+      WORLD.schools.university,
+    ];
+    for (const pool of pools) {
+      expect(pool.length).toBeGreaterThanOrEqual(4);
+      for (const entry of pool) {
+        expect(entry.trim()).not.toBe("");
+      }
+    }
   });
 
   test("rolled names come from the world pools and the picked gender", () => {

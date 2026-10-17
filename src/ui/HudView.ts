@@ -17,6 +17,8 @@ export class HudView {
     private readonly timeBudget: number,
     private readonly rateUsd: number,
     private readonly rateNote: string,
+    /** Thai school-stage line, e.g. "ชั้นมัธยมปีที่ 3"; empty when not studying. */
+    private readonly stageLabel = "",
   ) {}
 
   render(): TemplateResult {
@@ -55,6 +57,9 @@ export class HudView {
         <div class="hud-line">
           <strong class="hud-name">${character.name}</strong>
           <span class="chip">${icon("Cake", 13)}อายุ ${this.age} ปี</span>
+          ${this.stageLabel
+            ? html`<span class="chip">${icon("GraduationCap", 13)}${this.stageLabel}</span>`
+            : ""}
         </div>
 
         <div class="hud-money">

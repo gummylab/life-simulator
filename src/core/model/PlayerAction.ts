@@ -1,5 +1,13 @@
 import type { StatKey } from "./StatBlock";
 
+/** Actions the engine routes to a Phase 2 system instead of plain effects. */
+export type SpecialAction =
+  | "enroll-university"
+  | "date"
+  | "marry"
+  | "divorce"
+  | "have-child";
+
 /**
  * One option the player can pick during a year.
  *
@@ -20,6 +28,8 @@ export interface PlayerAction {
   readonly energyCost?: number;
   /** Energy granted instead, used by rest activities. */
   readonly energyRestore?: number;
+  /** Hands the action to a relationship or education system. */
+  readonly special?: SpecialAction;
   readonly effects: {
     readonly money?: number;
     readonly stats?: Partial<Record<StatKey, number>>;

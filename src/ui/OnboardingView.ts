@@ -2,16 +2,14 @@ import { html, type TemplateResult } from "lit";
 import { icon } from "./icons";
 
 /**
- * How-to panel. It greets the very first moments of a brand new life on
- * the action tab, and stays reachable from the more tab forever.
+ * Full-screen how-to, opened from the more tab's menu list.
+ * The action tab no longer shows it inline; the menu is its only home.
  */
 export class OnboardingView {
-  constructor(private readonly title = "ก่อนเริ่มเล่น") {}
-
   render(): TemplateResult {
     return html`
       <section class="panel onboarding">
-        <h2>${icon("CircleHelp", 18)}${this.title}</h2>
+        <h2>${icon("CircleHelp", 18)}วิธีเล่น</h2>
         <ul>
           <li>
             ทุกปีมีเวลาจำกัด ทุกกิจกรรมกินเวลาตามที่เขียนใต้ปุ่ม พอเวลาหมดปีจะจบเองและอายุเพิ่มขึ้น
@@ -24,6 +22,11 @@ export class OnboardingView {
           <li>นอนพักไม่เสียเงินแต่คืนช้า ส่วนกิจกรรมผ่อนคลายแบบเสียเงินคืนเร็วกว่าและได้ความสุขเพิ่ม</li>
           <li>เกมบันทึกให้เองทุกครั้งที่กด ปิดหน้าเว็บแล้วเปิดใหม่กลับมาเล่นต่อได้ทันที</li>
         </ul>
+        <div class="summary-actions">
+          <button type="button" class="ghost" data-do="back">
+            ${icon("ChevronLeft", 16)}กลับ
+          </button>
+        </div>
       </section>
     `;
   }

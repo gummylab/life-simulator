@@ -1,5 +1,6 @@
 import { StatBlock, type StatKey } from "./StatBlock";
 import { ENERGY_MAX } from "../config";
+import type { Person } from "./Person";
 
 export type Gender = "female" | "male";
 
@@ -28,6 +29,30 @@ export interface CharacterSpec {
  * change it on marriage (see ADR 0004), so it cannot stay part of the
  * immutable given name.
  */
+
+/** Which schools were attended, plus the university opt-in flag. */
+export interface EducationState {
+  primarySchool: string | null;
+  secondarySchool: string | null;
+  universitySchool: string | null;
+  enrolledUniversity: boolean;
+}
+
+/** Current job: id into the jobs catalog, seniority and promotion level. */
+export interface JobState {
+  id: string | null;
+  years: number;
+  level: number;
+}
+
+/** Family ties: parents from birth, then partner and children. */
+export interface FamilyState {
+  parents: Person[];
+  partner: Person | null;
+  married: boolean;
+  children: Person[];
+}
+
 export class Character {
   readonly givenName: string;
   /** Changes for a woman who marries, and for her children at birth. */
@@ -41,6 +66,10 @@ export class Character {
   energy: number;
   alive = true;
   deathCause: DeathCause | null = null;
+  /** Education, job and family all live on the character: they are per-life. */
+  readonly education: EducationState;
+  readonly job: JobState;
+  readonly family: FamilyState;
 
   constructor(spec: CharacterSpec) {
     this.givenName = spec.givenName;
@@ -51,6 +80,15 @@ export class Character {
     this.money = spec.money;
     this.energy = Math.min(ENERGY_MAX, Math.max(0, spec.energy ?? ENERGY_MAX));
     this.stats = new StatBlock(spec.stats);
+    // Phase 2 state starts empty; systems fill it in as the years pass.
+    this.education = {
+      primarySchool: null,
+      secondarySchool: null,
+      universitySchool: null,
+      enrolledUniversity: false,
+    };
+    this.job = { id: null, years: 0, level: 0 };
+    this.family = { parents: [], partner: null, married: false, children: [] };
   }
 
   /** Full name as shown in the HUD and in the biography. */

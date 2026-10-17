@@ -7,14 +7,17 @@ import type { BirthSetup } from "../core/model/BirthSetup";
 import { SeededRng } from "../core/rng/SeededRng";
 import { deserializeGame, serializeGame } from "../core/save/SaveManager";
 import { ACTIONS } from "../content/actions";
+import { GAME_CONTENT } from "../content/gameContent";
 import { randomNameFor } from "../content/world";
 import { DEATH_CAUSE_LABELS } from "../content/deathCauses";
 import { FALLBACK_RATE_USD, resolveBtcQuote } from "../infra/CoinGecko";
 import { clearSave, persistSave, readSave } from "../infra/localSave";
 import { BirthSetupView } from "./BirthSetupView";
+import { CareerView } from "./CareerView";
 import { HudView } from "./HudView";
 import { LifeSummaryView } from "./LifeSummaryView";
 import { MenuView } from "./MenuView";
+import { MoreMenuView } from "./MoreMenuView";
 import { OnboardingView } from "./OnboardingView";
 import { TimelineView } from "./TimelineView";
 import { icon, type IconName } from "./icons";
@@ -24,6 +27,9 @@ const RATE_REFRESH_MS = 5 * 60 * 1000;
 
 /** The three thumb-reachable screens behind the bottom nav. */
 type Tab = "act" | "log" | "more";
+
+/** Full sub-screens opened from the more tab's menu list. */
+type View = "main" | "help" | "restart";
 
 const TABS: readonly { id: Tab; label: string; iconName: IconName }[] = [
   { id: "act", label: "กิจกรรม", iconName: "Gamepad2" },
@@ -56,13 +62,18 @@ export class App {
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
   /** Which bottom-nav screen is open. */
   private tab: Tab = "act";
+  /** Sub-screen above the tab content; "main" means the tab itself. */
+  private view: View = "main";
+  /** Armed state of the restart button: wiped on the second tap. */
+  private confirmRestart = false;
+  private confirmTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly root: HTMLElement) {}
 
   start(): void {
     const resumed = deserializeGame(readSave() ?? "");
     if (resumed) {
-      this.game = new Game(resumed.state);
+      this.game = new Game(resumed.state, GAME_CONTENT);
       this.pendingRateUsd = resumed.baseRateUsd;
       this.price = new BtcPrice(
         resumed.baseRateUsd,
@@ -82,6 +93,8 @@ export class App {
     this.game = null;
     this.price = null;
     this.tab = "act";
+    this.view = "main";
+    this.clearRestartConfirm();
     const body = html`<main class="content">${new BirthSetupView().render()}</main>`;
     render(this.deviceTemplate(body), this.root);
   }
@@ -117,43 +130,75 @@ export class App {
     const state = game.gameState;
     const character = state.character;
     const rateUsd = this.price?.rateForYear(state.year) ?? FALLBACK_RATE_USD;
-    // The how-to only greets the very first moments of a brand new life.
-    const firstMoments = state.history.length === 0 ? new OnboardingView().render() : nothing;
+
+    // Sub-screens fill the display: no HUD, only their own panel plus nav.
+    if (this.view === "help") {
+      return html`${this.toast()}
+        <main class="content">${new OnboardingView().render()}</main>
+        ${this.dock(character.alive, false)}`;
+    }
+    if (this.view === "restart") {
+      const summary = new LifeSummaryView(state, rateUsd, this.confirmRestart);
+      return html`${this.toast()}
+        <main class="content">${summary.render()}</main>
+        ${this.dock(character.alive, false)}`;
+    }
 
     let tabContent: TemplateResult;
     if (this.tab === "log") {
       tabContent = new TimelineView(state.history).render();
     } else if (this.tab === "more") {
-      // Future save export/import buttons land on this tab (Task 3.5).
-      tabContent = new OnboardingView("วิธีเล่น").render();
+      // A menu list; future save export/import rows join it (Task 3.5).
+      tabContent = new MoreMenuView().render();
     } else if (character.alive) {
-      const menu = new MenuView(
-        game.availableActions(ACTIONS).map((action) => ({
-          action,
-          reason: game.actionBlockReason(action),
-        })),
-      );
-      tabContent = html`${firstMoments}${menu.render()}`;
+      // Education line + jobs panel sit above the plain activity menu.
+      tabContent = html`
+        ${new CareerView(game).render()}
+        ${new MenuView(
+          game.availableActions(ACTIONS).map((action) => ({
+            action,
+            reason: game.actionBlockReason(action),
+          })),
+        ).render()}
+      `;
     } else {
-      tabContent = new LifeSummaryView(character, state.year, rateUsd).render();
+      tabContent = new LifeSummaryView(state, rateUsd, this.confirmRestart).render();
     }
 
+    // The HUD belongs to the action tab only; the other tabs read full height.
+    const hud =
+      this.tab === "act"
+        ? new HudView(
+            character,
+            state.year,
+            game.age,
+            state.timeLeft,
+            game.timeBudget,
+            rateUsd,
+            this.rateNote,
+            game.stageLabel(),
+          ).render()
+        : nothing;
+
     return html`
-      ${new HudView(
-        character,
-        state.year,
-        game.age,
-        state.timeLeft,
-        game.timeBudget,
-        rateUsd,
-        this.rateNote,
-      ).render()}
-      ${this.notice
-        ? html`<div class="toast" role="status">${icon("Info", 16)}<span>${this.notice}</span></div>`
-        : nothing}
+      ${hud}${this.toast()}
       <main class="content">${tabContent}</main>
+      ${this.dock(character.alive, this.tab !== "more")}
+    `;
+  }
+
+  /** Transient note after the year changes, floating above the dock. */
+  private toast(): TemplateResult | typeof nothing {
+    return this.notice
+      ? html`<div class="toast" role="status">${icon("Info", 16)}<span>${this.notice}</span></div>`
+      : nothing;
+  }
+
+  /** Year button (main tab screens only) above the always-visible nav. */
+  private dock(alive: boolean, showAdvance: boolean): TemplateResult {
+    return html`
       <footer class="dock">
-        ${character.alive
+        ${alive && showAdvance
           ? html`<button type="button" class="advance" data-do="advance">
               ${icon("FastForward", 18)}<span>อายุ +1 ปี</span>
             </button>`
@@ -201,6 +246,20 @@ export class App {
     // Tab switches only move the camera; no game state changes.
     if (command.startsWith("tab:")) {
       this.tab = command.slice(4) as Tab;
+      this.view = "main";
+      this.render();
+      return;
+    }
+
+    // More tab sub-screens: how-to and the restart farewell.
+    if (command === "open-help" || command === "open-restart") {
+      this.view = command === "open-help" ? "help" : "restart";
+      this.render();
+      return;
+    }
+
+    if (command === "back") {
+      this.view = "main";
       this.render();
       return;
     }
@@ -216,9 +275,37 @@ export class App {
       return;
     }
 
+    if (command === "copy-bio") {
+      void this.copyBiography();
+      return;
+    }
+
     if (command === "restart") {
+      // Autosave is the only save, so wiping it needs a second tap.
+      if (!this.confirmRestart) {
+        this.armRestartConfirm();
+        return;
+      }
+      this.clearRestartConfirm();
       clearSave();
       this.renderSetup();
+      return;
+    }
+
+    // Career commands come from the jobs panel, not the action list.
+    if (command === "quit-job") {
+      game.quitJob();
+      this.persist();
+      this.render();
+      return;
+    }
+    if (command.startsWith("apply:")) {
+      const spec = GAME_CONTENT.jobs.find((job) => job.id === command.slice(6));
+      if (spec) {
+        game.applyForJob(spec);
+      }
+      this.persist();
+      this.render();
       return;
     }
 
@@ -253,6 +340,23 @@ export class App {
     }
   }
 
+  /** Copies the dead character's biography to the clipboard. */
+  private async copyBiography(): Promise<void> {
+    const game = this.game;
+    if (!game) {
+      return;
+    }
+    const rateUsd = this.price?.rateForYear(game.gameState.year) ?? FALLBACK_RATE_USD;
+    const text = new LifeSummaryView(game.gameState, rateUsd).biographyText();
+    try {
+      await navigator.clipboard.writeText(text);
+      this.showNotice("คัดลอกชีวประวัติแล้ว");
+    } catch {
+      this.showNotice("คัดลอกไม่สำเร็จ ลองคัดลอกมือ");
+    }
+    this.render();
+  }
+
   private showNotice(text: string): void {
     this.notice = text;
     if (this.noticeTimer !== null) {
@@ -262,6 +366,27 @@ export class App {
       this.notice = "";
       this.render();
     }, 3000);
+  }
+
+  /** First tap arms the restart button; it disarms itself in three seconds. */
+  private armRestartConfirm(): void {
+    this.confirmRestart = true;
+    if (this.confirmTimer !== null) {
+      clearTimeout(this.confirmTimer);
+    }
+    this.confirmTimer = setTimeout(() => {
+      this.confirmRestart = false;
+      this.render();
+    }, 3000);
+    this.render();
+  }
+
+  private clearRestartConfirm(): void {
+    this.confirmRestart = false;
+    if (this.confirmTimer !== null) {
+      clearTimeout(this.confirmTimer);
+      this.confirmTimer = null;
+    }
   }
 
   /** Death gets its own timeline line, whoever ended the year. */
@@ -297,7 +422,7 @@ export class App {
 
     const seed = Date.now() % 2147483647;
     const birthYear = new Date().getFullYear();
-    this.game = createLife(setup, seed, birthYear);
+    this.game = createLife(setup, seed, birthYear, GAME_CONTENT);
     this.price = new BtcPrice(this.pendingRateUsd ?? FALLBACK_RATE_USD, birthYear, seed);
     this.persist();
     this.render();

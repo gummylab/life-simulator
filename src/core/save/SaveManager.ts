@@ -1,5 +1,6 @@
 import { Character, type DeathCause, type Gender } from "../model/Character";
 import { GameState, type TimelineEntry } from "../model/GameState";
+import type { Person } from "../model/Person";
 
 /**
  * Save schema serialization.
@@ -38,6 +39,20 @@ interface SavePayload {
     stats: Record<string, number>;
     alive: boolean;
     deathCause: DeathCause | null;
+    /** Phase 2 fields; optional so version-1 files from before them still load. */
+    education?: {
+      primarySchool: string | null;
+      secondarySchool: string | null;
+      universitySchool: string | null;
+      enrolledUniversity: boolean;
+    };
+    job?: { id: string | null; years: number; level: number };
+    family?: {
+      parents: Person[];
+      partner: Person | null;
+      married: boolean;
+      children: Person[];
+    };
   };
   timeline: TimelineEntry[];
 }
@@ -70,6 +85,19 @@ export function serializeGame(state: GameState, baseRateUsd: number): string {
       },
       alive: character.alive,
       deathCause: character.deathCause,
+      education: {
+        primarySchool: character.education.primarySchool,
+        secondarySchool: character.education.secondarySchool,
+        universitySchool: character.education.universitySchool,
+        enrolledUniversity: character.education.enrolledUniversity,
+      },
+      job: { id: character.job.id, years: character.job.years, level: character.job.level },
+      family: {
+        parents: [...character.family.parents],
+        partner: character.family.partner,
+        married: character.family.married,
+        children: [...character.family.children],
+      },
     },
     timeline: [...state.timeline],
   };
@@ -129,6 +157,24 @@ export function deserializeGame(json: string): LoadedGame | null {
     });
     character.alive = saved.alive;
     character.deathCause = saved.deathCause;
+    // Version-1 saves from before Phase 2 simply keep the empty defaults.
+    if (saved.education) {
+      character.education.primarySchool = saved.education.primarySchool ?? null;
+      character.education.secondarySchool = saved.education.secondarySchool ?? null;
+      character.education.universitySchool = saved.education.universitySchool ?? null;
+      character.education.enrolledUniversity = saved.education.enrolledUniversity ?? false;
+    }
+    if (saved.job) {
+      character.job.id = saved.job.id ?? null;
+      character.job.years = saved.job.years ?? 0;
+      character.job.level = saved.job.level ?? 0;
+    }
+    if (saved.family) {
+      character.family.parents = Array.isArray(saved.family.parents) ? saved.family.parents : [];
+      character.family.partner = saved.family.partner ?? null;
+      character.family.married = saved.family.married ?? false;
+      character.family.children = Array.isArray(saved.family.children) ? saved.family.children : [];
+    }
 
     const state = new GameState({
       year: data.year,

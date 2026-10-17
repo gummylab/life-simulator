@@ -340,6 +340,50 @@ body {
   cursor: not-allowed;
 }
 
+/* Menu list on the more tab */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.menu-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-row-icon {
+  color: var(--accent);
+}
+
+.menu-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.menu-row-note {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.menu-row-chevron {
+  color: var(--muted);
+}
+
 /* Bottom dock: year button above the three-tab nav */
 .dock {
   flex: none;
@@ -366,6 +410,36 @@ body {
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
+}
+
+/* Armed restart button: second tap within three seconds wipes the save */
+.advance.confirm {
+  background: var(--warn);
+  color: #2a1c02;
+}
+
+/* Secondary button used under the primary one on summary screens */
+.ghost {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.summary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .tabs {

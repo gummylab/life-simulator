@@ -48,3 +48,61 @@ export function allowanceForAge(age: number): number {
   }
   return ALLOWANCE_BANDS.at(-1)?.btc ?? 0;
 }
+
+/* ------------------------------------------------------------------ *
+ * Phase 2: education, career and events balance.
+ * All numbers live here so a single file stays the tuning surface.
+ * ------------------------------------------------------------------ */
+
+/** Thai education stages by age band. Ages fall into exactly one stage. */
+export const PRIMARY_MIN_AGE = 6;
+export const SECONDARY_MIN_AGE = 12;
+export const UNIVERSITY_MIN_AGE = 18;
+export const PRIMARY_GRADUATION_AGE = 12;
+export const SECONDARY_GRADUATION_AGE = 18;
+export const UNIVERSITY_GRADUATION_AGE = 22;
+
+/** Yearly tuition per stage in BTC; university is the expensive one. */
+export const TUITION: Readonly<Record<"primary" | "secondary" | "university", number>> = {
+  primary: 0.00002,
+  secondary: 0.00005,
+  university: 0.0004,
+};
+
+/** Time units school commits each year; the rest of the budget stays free. */
+export const SCHOOL_TIME: Readonly<Record<"primary" | "secondary" | "university", number>> = {
+  primary: 30,
+  secondary: 40,
+  university: 50,
+};
+
+/** Smarts gained per school year; university teaches the most. */
+export const SCHOOL_SMARTS: Readonly<Record<"primary" | "secondary" | "university", number>> = {
+  primary: 1,
+  secondary: 2,
+  university: 4,
+};
+
+/** Living costs while employed; deducted with each salary payment. */
+export const YEARLY_EXPENSES = 0.00015;
+
+/** Promotion every N years on the same job; each level adds this salary share. */
+export const PROMOTION_EVERY_YEARS = 3;
+export const PROMOTION_RAISE = 0.25;
+/** Levels cap out so a 60-year career never pays billions. */
+export const PROMOTION_MAX_LEVEL = 5;
+
+/** Chance a yearly event fires at all; a second pick never happens. */
+export const EVENT_YEAR_CHANCE = 0.6;
+
+/** Yearly salary per job id, in BTC. Kept here so one file tunes the economy. */
+export const SALARY = {
+  "part-time-shop": 0.0004,
+  "kitchen-helper": 0.0006,
+  "delivery-rider": 0.0008,
+  clerk: 0.0012,
+  sales: 0.0015,
+  technician: 0.0018,
+  teacher: 0.0024,
+  engineer: 0.0035,
+} as const satisfies Record<string, number>;
