@@ -28,7 +28,7 @@ export function groupTimelineEntries(entries: readonly TimelineEntry[]): Grouped
   return groups;
 }
 
-/** Life log tab: newest entry on top, repeats merged. */
+/** Full life log sub-screen: newest entry on top, repeats merged. */
 export class TimelineView {
   constructor(private readonly entries: readonly TimelineEntry[]) {}
 
@@ -52,6 +52,11 @@ export class TimelineView {
       <section class="panel">
         <h2>${icon("ScrollText", 18)}บันทึกชีวิต</h2>
         <ol class="timeline">${items}</ol>
+        <div class="summary-actions">
+          <button type="button" class="ghost" data-do="back">
+            ${icon("ChevronLeft", 16)}กลับ
+          </button>
+        </div>
       </section>
     `;
   }

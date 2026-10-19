@@ -20,6 +20,12 @@ const ROWS: readonly MenuRow[] = [
     note: "อธิบายระบบเวลา พลังงาน และการบันทึกอัตโนมัติ",
   },
   {
+    command: "open-lifelog",
+    iconName: "ScrollText",
+    label: "บันทึกชีวิต",
+    note: "ประวัติทุกบรรทัดตั้งแต่เกิด เรียงใหม่สุดบนสุด",
+  },
+  {
     command: "open-restart",
     iconName: "RefreshCw",
     label: "เริ่มใหม่",

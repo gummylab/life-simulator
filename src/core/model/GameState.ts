@@ -62,8 +62,6 @@ export class GameState {
   /** Action ids the player has already been offered this life (Phase 5). */
   seenActions: string[];
   private readonly entries: TimelineEntry[] = [];
-  /** Lines recorded since the year opened; drained by advanceYear into news. */
-  private readonly newsLines: string[] = [];
 
   constructor(spec: GameStateSpec) {
     this.year = spec.year;
@@ -89,23 +87,6 @@ export class GameState {
       age: this.character.ageAt(this.year),
       text,
     });
-    this.newsLines.push(text);
-  }
-
-  /**
-   * Drops everything recorded so far. advanceYear calls this right after
-   * the year ticks, so only the year-start systems (events, allowance,
-   * promotions, graduations) end up in the returned news.
-   */
-  clearNews(): void {
-    this.newsLines.length = 0;
-  }
-
-  /** The news of the year that just resolved, oldest first. */
-  drainNews(): string[] {
-    const out = [...this.newsLines];
-    this.newsLines.length = 0;
-    return out;
   }
 
   /** Newest first, ready for the timeline view to render. */

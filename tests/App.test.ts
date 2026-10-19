@@ -60,20 +60,23 @@ describe("App smoke test on happy-dom", () => {
     expect(root.querySelector("#birth-setup")).toBeNull();
     expect(root.querySelector(".hud")).not.toBeNull();
     expect(root.querySelector(".action")).not.toBeNull();
+    // Identity sits in the expanded navbar detail; collapsed is default.
+    root.querySelector<HTMLButtonElement>("[data-do='toggle-hud']")?.click();
     expect(root.textContent).toContain("ทดสอบ");
   });
 
-  test("clicking an action records it and the log tab shows it", () => {
+  test("clicking an action posts its result into the year feed at once", () => {
     const root = mount();
     startLife(root, "ทดสอบ");
 
     root.querySelector<HTMLButtonElement>(".action")?.click();
-    root.querySelector<HTMLButtonElement>("[data-do='tab:log']")?.click();
 
-    const timeline = root.querySelector(".timeline");
-    expect(timeline).not.toBeNull();
+    const feed = root.querySelector(".feed");
+    expect(feed).not.toBeNull();
     // The first baby action is "เล่นของเล่น"; its result must be logged.
-    expect(timeline?.textContent).toContain("ของเล่น");
+    expect(feed?.textContent).toContain("ของเล่น");
+    // No log tab anymore: the feed lives on the action tab itself.
+    expect(root.querySelector("[data-do='tab:log']")).toBeNull();
   });
 
   test("ending the year raises the toast and parks a save file", () => {
@@ -91,16 +94,14 @@ describe("App smoke test on happy-dom", () => {
 
     const resumed = mount();
     expect(resumed.querySelector("#birth-setup")).toBeNull();
+    resumed.querySelector<HTMLButtonElement>("[data-do='toggle-hud']")?.click();
     expect(resumed.textContent).toContain("ต่อเนื่อง");
   });
 
-  test("the HUD shows only on the action tab", () => {
+  test("the navbar shows only on the action tab of a living character", () => {
     const root = mount();
     startLife(root, "ทดสอบ");
     expect(root.querySelector(".hud")).not.toBeNull();
-
-    root.querySelector<HTMLButtonElement>("[data-do='tab:log']")?.click();
-    expect(root.querySelector(".hud")).toBeNull();
 
     root.querySelector<HTMLButtonElement>("[data-do='tab:more']")?.click();
     expect(root.querySelector(".hud")).toBeNull();
@@ -124,6 +125,27 @@ describe("App smoke test on happy-dom", () => {
 
     root.querySelector<HTMLButtonElement>("[data-do='back']")?.click();
     expect(root.querySelector(".onboarding")).toBeNull();
+    expect(root.querySelector(".menu-row")).not.toBeNull();
+  });
+
+  test("the more menu always offers the full life log sub-screen", () => {
+    const root = mount();
+    startLife(root, "ทดสอบ");
+    root.querySelector<HTMLButtonElement>(".action")?.click();
+    root.querySelector<HTMLButtonElement>("[data-do='tab:more']")?.click();
+
+    // The row is permanent, right after the how-to row.
+    const rows = Array.from(root.querySelectorAll("[data-do='open-lifelog']"));
+    expect(rows).toHaveLength(1);
+    (rows[0] as HTMLButtonElement).click();
+
+    const timeline = root.querySelector(".timeline");
+    expect(timeline).not.toBeNull();
+    expect(timeline?.textContent).toContain("ของเล่น");
+    expect(root.querySelector(".hud")).toBeNull();
+
+    root.querySelector<HTMLButtonElement>("[data-do='back']")?.click();
+    expect(root.querySelector(".timeline")).toBeNull();
     expect(root.querySelector(".menu-row")).not.toBeNull();
   });
 
@@ -162,12 +184,15 @@ describe("App smoke test on happy-dom", () => {
     expect(domWindow.localStorage.getItem("life-simulator.save")).not.toBeNull();
   });
 
-  test("the HUD shows the school stage once the child turns six", () => {
+  test("the navbar shows the school stage once the child turns six", () => {
     const root = mount();
     startLife(root, "ทดสอบ");
     for (let i = 0; i < 6; i += 1) {
       root.querySelector<HTMLButtonElement>("[data-do='advance']")?.click();
     }
+    // Stage sits in the expanded detail, collapsed is the default.
+    expect(root.textContent).not.toContain("ชั้นประถมปีที่ 1");
+    root.querySelector<HTMLButtonElement>("[data-do='toggle-hud']")?.click();
     expect(root.textContent).toContain("ชั้นประถมปีที่ 1");
   });
 
@@ -222,6 +247,8 @@ describe("App smoke test on happy-dom", () => {
 
     const root = mount();
     expect(root.textContent).toContain("ชีวประวัติของ โนอา คลาร์ก");
+    // A dead character reads full height: no navbar.
+    expect(root.querySelector(".hud")).toBeNull();
     root.querySelector<HTMLButtonElement>("[data-do='copy-bio']")?.click();
     // The clipboard write is awaited inside the handler; flush microtasks.
     await Promise.resolve();
@@ -252,35 +279,71 @@ describe("Phase 5 turn-loop UX", () => {
     expect(again.querySelector("#birth-setup")).not.toBeNull();
   });
 
-  test("advancing the year shows the year report card with the allowance", () => {
+  test("advancing the year shows the feed with the allowance", () => {
     const root = mount();
     startLife(root, "ทดสอบ");
 
-    // Under six there is no allowance, so the report card stays hidden.
-    expect(root.querySelector(".news")).toBeNull();
+    // Under six there is no allowance and nothing else recorded: no feed.
+    expect(root.querySelector(".feed")).toBeNull();
 
     for (let i = 0; i < 7; i += 1) {
       root.querySelector<HTMLButtonElement>("[data-do='advance']")?.click();
     }
-    const report = root.querySelector(".news");
-    expect(report).not.toBeNull();
-    expect(report?.textContent).toContain("สิ่งที่เกิดขึ้นในปี");
-    expect(report?.textContent).toContain("ค่าขนม");
+    const feed = root.querySelector(".feed");
+    expect(feed).not.toBeNull();
+    expect(feed?.textContent).toContain("บันทึกปี");
+    expect(feed?.textContent).toContain("ค่าขนม");
   });
 
-  test("the stat strip expands into full bars and collapses again", () => {
+  test("the year feed caps at the latest lines with a full-year expand", () => {
+    // Six distinct lines in the current year: four visible, two behind
+    // the expand button, newest last.
+    const character = makeCharacter({ birthYear: 2026, money: 0.01 });
+    const state = new GameState({
+      year: 2031,
+      seed: 7,
+      rngState: 7,
+      character,
+      founderFamilyName: "หนึ่งชีวิต",
+      timeLeft: 60,
+      timeline: Array.from({ length: 6 }, (_, index) => ({
+        year: 2031,
+        age: 5,
+        text: `เรื่องที่ ${index + 1}`,
+      })),
+    });
+    persistSave(serializeGame(state, 100_000));
+
+    const root = mount();
+    const feed = () => root.querySelector(".feed");
+    expect(feed()?.querySelectorAll("li")).toHaveLength(4);
+    expect(feed()?.textContent).not.toContain("เรื่องที่ 1");
+    expect(feed()?.textContent).toContain("เรื่องที่ 6");
+
+    const expand = () => root.querySelector<HTMLButtonElement>("[data-do='toggle-feed']");
+    expect(expand()?.textContent).toContain("ดูทั้งปี");
+    expand()?.click();
+    expect(feed()?.querySelectorAll("li")).toHaveLength(6);
+    expect(feed()?.textContent).toContain("เรื่องที่ 1");
+    expect(expand()?.textContent).toContain("ซ่อน");
+
+    expand()?.click();
+    expect(feed()?.querySelectorAll("li")).toHaveLength(4);
+  });
+
+  test("the navbar expands into full detail and collapses again", () => {
     const root = mount();
     startLife(root, "ทดสอบ");
 
-    const strip = root.querySelector<HTMLButtonElement>("[data-do='toggle-stats']");
-    expect(strip).not.toBeNull();
-    // Collapsed by default: pills, no bars.
-    expect(strip?.getAttribute("aria-expanded")).toBe("false");
+    const bar = root.querySelector<HTMLButtonElement>("[data-do='toggle-hud']");
+    expect(bar).not.toBeNull();
+    // Collapsed by default: the four decision numbers, no stat bars.
+    expect(bar?.getAttribute("aria-expanded")).toBe("false");
     expect(root.querySelectorAll(".stats .stat")).toHaveLength(0);
 
-    strip?.click();
+    bar?.click();
     expect(root.querySelectorAll(".stats .stat")).toHaveLength(4);
-    root.querySelector<HTMLButtonElement>("[data-do='toggle-stats']")?.click();
+    root.querySelector<HTMLButtonElement>("[data-do='toggle-hud']")?.click();
     expect(root.querySelectorAll(".stats .stat")).toHaveLength(0);
   });
 

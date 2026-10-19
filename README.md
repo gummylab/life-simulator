@@ -57,6 +57,6 @@ push ขึ้น branch `main` แล้ว GitHub Actions (`.github/workflows/
 
 ## อ่านต่อ
 
-- `PLAN.md` — แผนทั้งสี่ phase และบันทึกการตัดสินใจรายรอบ
+- `PLAN.md` — แผนทุก phase และบันทึกการตัดสินใจรายรอบ
 - `GLOSSARY.md` — คำศัพท์เกมและข้อกำหนดในโค้ด
-- `docs/adr/` — Architecture Decision Records ทั้ง 11 ฉบับ
+- `docs/adr/` — Architecture Decision Records ทั้ง 12 ฉบับ

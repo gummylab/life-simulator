@@ -90,12 +90,19 @@ body {
   scrollbar-color: var(--line) transparent;
 }
 
-/* Top card (Phase 5): identity chips, money, vitals, stat strip */
+/* Status navbar (Phase 6): slim bar on top, detail only when expanded */
 .hud {
   flex: none;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   padding: 10px 14px 12px;
+}
+
+.hud-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .hud-line {
@@ -109,27 +116,10 @@ body {
   font-weight: 400;
 }
 
-.hud-money {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  font-size: 1.05rem;
-}
-
-.hud-money .icon {
-  color: var(--accent);
-}
-
-.hud-money .muted {
-  font-size: 0.8rem;
-}
-
 .hud-vitals {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 10px;
 }
 
 .meter {
@@ -215,35 +205,29 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* One-line stat strip: pills with values, tap to expand the bars. */
-.stat-strip {
+/* One-line status navbar: four decision numbers, tap the row to expand. */
+.hud-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 6px 8px;
   width: 100%;
-  margin-top: 10px;
-  padding: 6px 10px;
+  padding: 6px 8px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--panel-2);
   color: var(--ink);
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   cursor: pointer;
 }
 
-.stat-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-variant-numeric: tabular-nums;
+.hud-bar .chip {
+  font-size: 0.74rem;
+  padding: 2px 7px;
 }
 
-.stat-pill .icon {
-  color: var(--accent);
-}
-
-.stat-strip > .icon {
+.hud-bar > .icon {
   margin-left: auto;
   color: var(--muted);
 }
@@ -305,19 +289,24 @@ body {
   font-size: 0.66rem;
 }
 
-/* Year report card: what the ending year produced */
-.news {
+/* Year feed: what the current year has recorded so far */
+.feed {
   border-left: 3px solid var(--accent);
 }
 
-.news-list {
+.feed-list {
   margin: 0;
   padding-left: 18px;
   font-size: 0.88rem;
 }
 
-.news-list li {
+.feed-list li {
   margin: 4px 0;
+}
+
+.feed .ghost {
+  width: 100%;
+  margin-top: 8px;
 }
 
 /* Action cards */

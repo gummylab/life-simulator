@@ -23,24 +23,31 @@ import { MoreMenuView } from "./MoreMenuView";
 import { OnboardingView } from "./OnboardingView";
 import { SuccessionView } from "./SuccessionView";
 import { TimelineView } from "./TimelineView";
-import { YearReportView } from "./YearReportView";
+import { YearFeedView } from "./YearFeedView";
 import { icon, type IconName } from "./icons";
 
 /** The market can move while a session is open. */
 const RATE_REFRESH_MS = 5 * 60 * 1000;
 
-/** The three thumb-reachable screens behind the bottom nav. */
-type Tab = "act" | "log" | "more";
+/** The two thumb-reachable screens behind the bottom nav. */
+type Tab = "act" | "more";
 
 /** Full sub-screens opened from the more tab's menu list. */
-type View = "main" | "help" | "restart" | "succession" | "gameover" | "chronicle" | "welcome";
+type View =
+  | "main"
+  | "help"
+  | "restart"
+  | "succession"
+  | "gameover"
+  | "chronicle"
+  | "lifelog"
+  | "welcome";
 
 /** Which destructive button is armed for its second confirming tap. */
 type ArmedConfirm = "restart" | null;
 
 const TABS: readonly { id: Tab; label: string; iconName: IconName }[] = [
   { id: "act", label: "กิจกรรม", iconName: "Gamepad2" },
-  { id: "log", label: "บันทึก", iconName: "ScrollText" },
   { id: "more", label: "อื่นๆ", iconName: "Menu" },
 ];
 
@@ -76,9 +83,9 @@ export class App {
   private confirmTimer: ReturnType<typeof setTimeout> | null = null;
   /** Whether the jobs panel shows the out-of-reach jobs list. */
   private showAllJobs = false;
-  /** Phase 5 turn-loop state: the year's news, expanded panels and flags. */
-  private lastNews: readonly string[] = [];
-  private statsExpanded = false;
+  /** Phase 6 turn-loop state: navbar expansion, feed expansion, panel flags. */
+  private hudExpanded = false;
+  private showFullYearFeed = false;
   private showBlockedActions = false;
   private showCareer = false;
 
@@ -210,26 +217,30 @@ export class App {
         <main class="content">${view.render()}</main>
         ${this.dock(character.alive, false)}`;
     }
+    if (this.view === "lifelog") {
+      // Full life history lives behind the more tab now (Phase 6).
+      return html`${this.toast()}
+        <main class="content">${new TimelineView(state.history).render()}</main>
+        ${this.dock(character.alive, false)}`;
+    }
 
     let tabContent: TemplateResult;
-    if (this.tab === "log") {
-      tabContent = new TimelineView(state.history).render();
-    } else if (this.tab === "more") {
+    if (this.tab === "more") {
       tabContent = new MoreMenuView(
         state.dynasty.chronicle.length,
         rateUsd,
         this.rateNote,
       ).render();
     } else if (character.alive) {
-      // Turn-loop order (ADR 0012): year report, then the decision menu,
-      // then the jobs panel collapsed to one status row unless a job is
-      // actually open to apply for.
+      // Turn-loop order (Phase 6): the year feed, then the decision
+      // menu, then the jobs panel collapsed to one status row unless a
+      // job is actually open to apply for.
       const menuEntries = game.availableActions(ACTIONS).map((action) => ({
         action,
         reason: game.actionBlockReason(action),
       }));
       tabContent = html`
-        ${new YearReportView(state.year, this.lastNews).render()}
+        ${new YearFeedView(state.year, state.timeline, this.showFullYearFeed).render()}
         ${new MenuView(menuEntries, rateUsd, game.seenActions, this.showBlockedActions).render()}
         ${this.careerTemplate(game, rateUsd)}
       `;
@@ -242,9 +253,10 @@ export class App {
       ).render();
     }
 
-    // The HUD belongs to the action tab only; the other tabs read full height.
+    // The navbar belongs to the action tab of a living character only;
+    // death and the other tabs read full height.
     const hud =
-      this.tab === "act"
+      this.tab === "act" && character.alive
         ? new HudView(
             character,
             state.year,
@@ -253,7 +265,7 @@ export class App {
             game.timeBudget,
             rateUsd,
             game.stageLabel(),
-            this.statsExpanded,
+            this.hudExpanded,
           ).render()
         : nothing;
 
@@ -356,13 +368,15 @@ export class App {
       return;
     }
 
-    // More tab sub-screens: how-to, farewell, family record, end state.
+    // More tab sub-screens: how-to, farewell, family record, end state,
+    // and the full life log.
     if (
       command === "open-help" ||
       command === "open-restart" ||
       command === "open-succession" ||
       command === "open-gameover" ||
-      command === "open-chronicle"
+      command === "open-chronicle" ||
+      command === "open-lifelog"
     ) {
       if (command === "open-help") {
         this.view = "help";
@@ -370,6 +384,8 @@ export class App {
         this.view = "restart";
       } else if (command === "open-succession" || command === "open-chronicle") {
         this.view = command === "open-succession" ? "succession" : "chronicle";
+      } else if (command === "open-lifelog") {
+        this.view = "lifelog";
       } else {
         this.view = "gameover";
       }
@@ -445,14 +461,17 @@ export class App {
       return;
     }
 
-    // Turn-loop panel toggles (Phase 5): stat strip, blocked cards, jobs row.
+    // Turn-loop panel toggles (Phase 6): navbar, year feed, blocked cards.
     if (
-      command === "toggle-stats" ||
+      command === "toggle-hud" ||
+      command === "toggle-feed" ||
       command === "toggle-blocked" ||
       command === "toggle-career"
     ) {
-      if (command === "toggle-stats") {
-        this.statsExpanded = !this.statsExpanded;
+      if (command === "toggle-hud") {
+        this.hudExpanded = !this.hudExpanded;
+      } else if (command === "toggle-feed") {
+        this.showFullYearFeed = !this.showFullYearFeed;
       } else if (command === "toggle-blocked") {
         this.showBlockedActions = !this.showBlockedActions;
       } else {
@@ -492,10 +511,8 @@ export class App {
     // Snapshot what the ending year offered so its cards stop being "ใหม่".
     const visibleBefore = game.availableActions(ACTIONS).map((action) => action.id);
 
-    let news: readonly string[] = [];
     if (command === "advance") {
       const result = game.advanceYear();
-      news = result.news;
       this.recordDeath(result);
     } else {
       const action = ACTIONS.find((candidate) => candidate.id === command);
@@ -503,7 +520,6 @@ export class App {
         const outcome = game.performAction(action);
         // An action can end the year when it empties the time budget.
         if (outcome.accepted && outcome.yearEnded !== null) {
-          news = outcome.yearEnded.news;
           this.recordDeath(outcome.yearEnded);
         }
       }
@@ -513,8 +529,9 @@ export class App {
       // The year that just ended has been fully seen; new badges at the
       // fresh year then mark only the cards that newly appeared.
       game.markActionsSeen(visibleBefore);
+      // A fresh year resets the feed to its compact latest-lines view.
+      this.showFullYearFeed = false;
       if (game.character.alive) {
-        this.lastNews = news;
         this.showNotice(
           `ปี ${yearBefore} จบแล้ว เข้าสู่ปี ${game.gameState.year} ที่อายุ ${game.age} ปี`,
         );

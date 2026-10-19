@@ -153,19 +153,21 @@ describe("Game", () => {
     expect(state.character.alive).toBe(false);
   });
 
-  test("advanceYear returns the year-start news without the player's own actions", () => {
+  test("the timeline is the single log: year-start lines and actions both land there", () => {
     const game = makeGame();
     for (let i = 0; i < 6; i += 1) {
       game.advanceYear();
     }
-    // The age-6 allowance lands in the news of the year it fired.
-    const result = game.advanceYear();
-    expect(result.news.some((line) => line.startsWith("ได้ค่าขนมจากทางบ้าน"))).toBe(true);
+    // The age-6 allowance lands in the year it fired, and the newest
+    // allowance line belongs to the current year.
+    game.advanceYear();
+    const allowanceLines = game.gameState.history.filter((entry) =>
+      entry.text.startsWith("ได้ค่าขนมจากทางบ้าน"),
+    );
+    expect(allowanceLines.length).toBeGreaterThan(0);
+    expect(allowanceLines.some((entry) => entry.year === game.gameState.year)).toBe(true);
 
-    // The news drains: next year starts from a clean slate.
-    const next = game.advanceYear();
-    expect(next.news.some((line) => line.startsWith("ได้ค่าขนมจากทางบ้าน"))).toBe(true);
-    // An action the player takes never enters the year report.
+    // The player's own actions record into the same log the feed reads.
     game.character.addMoney(0.01);
     game.gameState.timeLeft = 100;
     const outcome = game.performAction(study);

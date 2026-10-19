@@ -15,12 +15,12 @@ function statTone(value: number): string {
 }
 
 /**
- * Compact top card (Phase 5): identity chips, money, the two decision
- * vitals (time and energy gate every action) and a one-line stat strip
- * that expands into the full bars on tap. The BTC rate note lives on the
- * more tab now: it never changes a decision, so it does not spend HUD
- * space. The first action card must fit on a 375x667 screen without
- * scrolling, so every row here earns its height.
+ * Status navbar (Phase 6): one slim row with the four numbers that gate
+ * every decision (age, money, time, energy). One tap on the row expands
+ * the full detail: identity, stage, meters and stat bars. Collapsed is
+ * the default so the first action card stays above the fold on a
+ * 375x667 screen. The BTC rate note lives on the more tab: it never
+ * changes a decision, so it never spends navbar space.
  */
 export class HudView {
   constructor(
@@ -32,11 +32,50 @@ export class HudView {
     private readonly rateUsd: number,
     /** Thai school-stage line, e.g. "ชั้นมัธยมปีที่ 3"; empty when not studying. */
     private readonly stageLabel = "",
-    /** Whether the stat strip is expanded into full bars. */
-    private readonly statsExpanded = false,
+    /** Whether the navbar is expanded into the full detail block. */
+    private readonly expanded = false,
   ) {}
 
   render(): TemplateResult {
+    const character = this.character;
+    const btc = character.money.toFixed(4);
+    // Dollars lead because even four decimals of BTC read poorly at a
+    // glance; the full eight decimals live in the life summary.
+    const fiat = formatUsd(character.money * this.rateUsd);
+
+    return html`
+      <header class="hud">
+        ${this.bar(fiat, btc)}
+        ${this.expanded ? this.detail() : nothing}
+      </header>
+    `;
+  }
+
+  /**
+   * The always-visible row. It is one button, so a single tap anywhere
+   * toggles the whole navbar.
+   */
+  private bar(fiat: string, btc: string): TemplateResult {
+    return html`
+      <button
+        type="button"
+        class="hud-bar"
+        data-do="toggle-hud"
+        aria-expanded=${String(this.expanded)}
+      >
+        <span class="chip">${icon("Cake", 13)}${this.age} ปี</span>
+        <span class="chip"
+          >${icon("Coins", 13)}${fiat} <span class="muted">(${btc} ${WORLD.currency})</span></span
+        >
+        <span class="chip">${icon("Clock", 13)}${this.timeLeft}/${this.timeBudget}</span>
+        <span class="chip">${icon("Zap", 13)}${this.character.energy}/${ENERGY_MAX}</span>
+        ${icon(this.expanded ? "ChevronUp" : "ChevronDown", 14)}
+      </button>
+    `;
+  }
+
+  /** Full detail, only while expanded: identity, vitals and stat bars. */
+  private detail(): TemplateResult {
     const character = this.character;
     // Guards against a zero budget so the bars never divide by zero.
     const timePct = Math.max(
@@ -58,32 +97,14 @@ export class HudView {
       `;
     });
 
-    const pills = STAT_KEYS.map(
-      (key) => html`
-        <span class="stat-pill">${icon(STAT_ICONS[key], 13)}${character.stats.get(key)}</span>
-      `,
-    );
-
-    const btc = character.money.toFixed(4);
-    // Dollars lead because even four decimals of BTC read poorly at a
-    // glance; the full eight decimals live in the life summary.
-    const fiat = formatUsd(character.money * this.rateUsd);
-
     return html`
-      <header class="hud">
+      <div class="hud-detail">
         <div class="hud-line">
           <strong class="hud-name">${character.name}</strong>
-          <span class="chip">${icon("Cake", 13)}อายุ ${this.age} ปี</span>
           <span class="chip">${icon("CalendarDays", 13)}ปี ${this.year}</span>
           ${this.stageLabel
             ? html`<span class="chip">${icon("GraduationCap", 13)}${this.stageLabel}</span>`
-            : ""}
-        </div>
-
-        <div class="hud-money">
-          ${icon("Coins", 15)}
-          <strong>${fiat}</strong>
-          <span class="muted">(${btc} ${WORLD.currency})</span>
+            : nothing}
         </div>
 
         <div class="hud-vitals">
@@ -105,16 +126,8 @@ export class HudView {
           </div>
         </div>
 
-        <button
-          type="button"
-          class="stat-strip"
-          data-do="toggle-stats"
-          aria-expanded=${String(this.statsExpanded)}
-        >
-          ${pills}${icon(this.statsExpanded ? "ChevronUp" : "ChevronDown", 14)}
-        </button>
-        ${this.statsExpanded ? html`<div class="stats">${bars}</div>` : nothing}
-      </header>
+        <div class="stats">${bars}</div>
+      </div>
     `;
   }
 }

@@ -21,11 +21,6 @@ export interface YearResult {
   readonly age: number;
   readonly died: boolean;
   readonly cause: DeathCause | null;
-  /**
-   * What the year-start systems recorded: random events, allowance,
-   * promotions, graduations. The UI shows it as the year report card.
-   */
-  readonly news: readonly string[];
 }
 
 /** Why an action cannot run right now. Feeds the menu's block messages. */
@@ -277,8 +272,6 @@ export class Game {
   /** Moves the calendar forward one year and resolves the year's systems. */
   advanceYear(): YearResult {
     this.state.year += 1;
-    // Only the year-start systems below land in the news report.
-    this.state.clearNews();
     const age = this.age;
     const character = this.state.character;
 
@@ -311,7 +304,7 @@ export class Game {
     }
 
     this.syncRngState();
-    return { age, died: outcome.died, cause: outcome.cause, news: this.state.drainNews() };
+    return { age, died: outcome.died, cause: outcome.cause };
   }
 
   /** Keeps the save file in step with the generator after every random draw. */
