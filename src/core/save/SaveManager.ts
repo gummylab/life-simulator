@@ -7,6 +7,7 @@ import {
   type TimelineEntry,
 } from "../model/GameState";
 import type { Person } from "../model/Person";
+import { BOND_DEFAULT } from "../config";
 
 /**
  * Save schema serialization.
@@ -56,6 +57,8 @@ interface SavePayload {
       enrolledUniversity: boolean;
     };
     job?: { id: string | null; years: number; level: number };
+    /** Phase 10 home id; optional so older files keep loading. */
+    home?: string | null;
     family?: {
       parents: Person[];
       partner: Person | null;
@@ -111,6 +114,7 @@ export function serializeGame(state: GameState, baseRateUsd: number): string {
         enrolledUniversity: character.education.enrolledUniversity,
       },
       job: { id: character.job.id, years: character.job.years, level: character.job.level },
+      home: character.home,
       family: {
         parents: [...character.family.parents],
         partner: character.family.partner,
@@ -151,6 +155,28 @@ function isPerson(value: unknown): value is Person {
   );
 }
 
+/** Closeness a file may carry, clamped so a broken one cannot flood a bar. */
+function readBond(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(100, Math.max(0, Math.round(value)))
+    : BOND_DEFAULT;
+}
+
+/** A person as the game wants them: valid shape, bond inside 0..100. */
+function normalizePerson(person: Person): Person {
+  return { ...person, bond: readBond(person.bond) };
+}
+
+/** Reads a list of relatives, dropping anything that is not a person. */
+function readPeople(value: unknown): Person[] {
+  return Array.isArray(value) ? value.filter(isPerson).map(normalizePerson) : [];
+}
+
+/** Reads the partner slot, which may legitimately be empty. */
+function readPartner(value: unknown): Person | null {
+  return isPerson(value) ? normalizePerson(value) : null;
+}
+
 /** Accepts the dynasty block when well-formed, or returns a safe default. */
 function readDynasty(value: unknown): DynastyState | undefined {
   const candidate = value as Partial<DynastyState> | null;
@@ -165,7 +191,7 @@ function readDynasty(value: unknown): DynastyState | undefined {
   }
   return {
     generation: Math.max(1, Math.floor(candidate.generation)),
-    tree: candidate.tree.filter(isPerson),
+    tree: candidate.tree.filter(isPerson).map(normalizePerson),
     chronicle: candidate.chronicle.filter((line): line is string => typeof line === "string"),
   };
 }
@@ -268,11 +294,13 @@ export function deserializeGame(json: string): LoadedGame | null {
       character.job.years = saved.job.years ?? 0;
       character.job.level = saved.job.level ?? 0;
     }
+    // An unknown home id reads as the family home instead of a broken screen.
+    character.home = typeof saved.home === "string" ? saved.home : null;
     if (saved.family) {
-      character.family.parents = Array.isArray(saved.family.parents) ? saved.family.parents : [];
-      character.family.partner = saved.family.partner ?? null;
+      character.family.parents = readPeople(saved.family.parents);
+      character.family.partner = readPartner(saved.family.partner);
       character.family.married = saved.family.married ?? false;
-      character.family.children = Array.isArray(saved.family.children) ? saved.family.children : [];
+      character.family.children = readPeople(saved.family.children);
     }
 
     const state = new GameState({

@@ -33,6 +33,17 @@ function baseRisk(age: number): number {
   return risk;
 }
 
+/**
+ * Yearly chance of dying at an age, before any health modifier.
+ *
+ * Exported so relatives (who have no health bar of their own) age on the
+ * same curve as the player instead of a second, drifting copy of it
+ * (ADR 0019).
+ */
+export function yearlyDeathChance(age: number): number {
+  return baseRisk(age);
+}
+
 function causeFor(age: number, health: number): DeathCause {
   if (health <= 35) {
     return "illness";

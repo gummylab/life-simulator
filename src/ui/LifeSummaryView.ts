@@ -89,6 +89,9 @@ export class LifeSummaryView {
         ? `เงินที่ถืออยู่ตอนนี้: ${fiat} (${btc} ${WORLD.currency})`
         : `มรดกที่ทิ้งไว้: ${fiat} (${btc} ${WORLD.currency})`,
     );
+
+    const home = GAME_CONTENT.homes.find((candidate) => candidate.id === character.home);
+    facts.push(`ที่อยู่สุดท้าย: ${home?.label ?? "อยู่กับครอบครัว"}`);
     return facts;
   }
 

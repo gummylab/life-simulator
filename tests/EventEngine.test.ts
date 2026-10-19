@@ -12,8 +12,13 @@ describe("EventEngine", () => {
     const engine = new EventEngine(rng);
     const state = game.gameState;
     state.character.family.married = false;
+    // The plainest marriage gate in the pool: no bond or job requirement
+    // riding along, so marriage is the only thing being tested here.
     const marriedOnly = GAME_CONTENT.events.find(
-      (event) => event.condition?.married === true,
+      (event) =>
+        event.condition?.married === true &&
+        event.condition.minBond === undefined &&
+        event.condition.maxBond === undefined,
     );
     expect(marriedOnly).toBeDefined();
     if (marriedOnly) {

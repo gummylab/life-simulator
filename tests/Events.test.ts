@@ -23,6 +23,8 @@ const CONDITION_KEYS = [
   "minHappiness",
   "minHealth",
   "minMoney",
+  "minBond",
+  "maxBond",
 ];
 
 /** Every event that asks the player something, for the choice-shaped scans. */

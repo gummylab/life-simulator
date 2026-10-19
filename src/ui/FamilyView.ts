@@ -1,7 +1,8 @@
-import { html, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import type { GameState } from "../core/model/GameState";
-import type { Person } from "../core/model/Person";
+import { bondOf, isAlive, type Person } from "../core/model/Person";
 import { icon } from "./icons";
+import { statTone } from "./stats";
 
 /**
  * The family screen: who the character is related to right now.
@@ -46,8 +47,21 @@ export class FamilyView {
               ${family.children.map((child, index) => this.personRow(`บุตรคนที่ ${index + 1}`, child))}
             </div>`
           : html`<p class="muted">ยังไม่มีบุตร — ต้องแต่งงานก่อนจึงจะมีลูกได้</p>`}
+        <p class="muted summary-note">
+          ${this.livingCount()} คนที่ยังอยู่ — ใช้กิจกรรม “ใช้เวลากับครอบครัว” ในหน้ากิจกรรมเพื่อดูแลความสัมพันธ์
+        </p>
       </section>
     `;
+  }
+
+  /** Relatives still alive, for the hint under the list. */
+  private livingCount(): number {
+    const family = this.state.character.family;
+    return [
+      ...family.parents,
+      ...(family.partner === null ? [] : [family.partner]),
+      ...family.children,
+    ].filter(isAlive).length;
   }
 
   /** How the line is doing: generation, size, and the way to the record. */
@@ -81,20 +95,38 @@ export class FamilyView {
     `;
   }
 
-  /** One relative: role, name, and either their age or how they died. */
+  /** One relative: role, name, bond while living, and age or how they died. */
   private personRow(role: string, person: Person): TemplateResult {
     const age = Math.max(0, this.state.year - person.birthYear);
     const dead = person.deathYear !== undefined;
     return html`
-      <div class="person" data-gender=${person.gender}>
+      <div class="person" data-gender=${person.gender} data-dead=${dead ? "true" : nothing}>
         <span class="person-icon">${icon("UserRound", 16)}</span>
         <span class="person-body">
           <span class="person-name">${person.givenName} ${person.familyName}</span>
           <span class="person-meta">
             ${role} · ${dead ? `เสียชีวิตเมื่ออายุ ${age} ปี` : `อายุ ${age} ปี`}
           </span>
+          ${dead ? nothing : this.bondBar(person)}
         </span>
       </div>
+    `;
+  }
+
+  /**
+   * How close the player is to this relative (ADR 0019). The bar keeps the
+   * same colour language as the four stats, so a cooling relationship reads
+   * at a glance next to a warm one.
+   */
+  private bondBar(person: Person): TemplateResult {
+    const bond = bondOf(person);
+    return html`
+      <span class="bond" title="ความสัมพันธ์ ${bond}/100">
+        <span class="bond-bar"
+          ><span class="bond-fill ${statTone(bond)}" style="width: ${bond}%"></span
+        ></span>
+        <span class="bond-value">${bond}</span>
+      </span>
     `;
   }
 }

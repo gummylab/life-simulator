@@ -167,6 +167,34 @@ export const EVENTS: readonly LifeEvent[] = [
     effects: { money: 0.0004, stats: { happiness: 3 } },
   },
   {
+    id: "money-invest-offer",
+    category: "money",
+    text: "เพื่อนชวนลงขันเปิดร้านเล็ก ๆ ด้วยกัน ใช้เงินก้อนหนึ่งแต่มีลุ้น",
+    weight: 2,
+    condition: { minAge: 25, minMoney: 0.002 },
+    effects: {},
+    options: [
+      {
+        text: "ลงขันไปกับเพื่อน",
+        effects: { money: -0.0015, stats: { happiness: 2, smarts: 2 } },
+        resultText: "ลงขันเปิดร้านกับเพื่อน ได้เรียนรู้การทำธุรกิจจากของจริง",
+      },
+      {
+        text: "ขอเก็บเงินไว้ก่อน",
+        effects: { stats: { happiness: -1, smarts: 1 } },
+        resultText: "เลือกเก็บเงินไว้ก่อน แล้วบอกเพื่อนว่าขอผ่านรอบนี้",
+      },
+    ],
+  },
+  {
+    id: "money-home-repair",
+    category: "money",
+    text: "เครื่องใช้ในบ้านเสียพร้อมกันหลายอย่าง ต้องเรียกช่างมาซ่อม",
+    weight: 3,
+    condition: { minAge: 18, minMoney: 0.001 },
+    effects: { money: -0.00025, stats: { happiness: -2 } },
+  },
+  {
     id: "money-rent-up",
     category: "money",
     text: "ค่าเช่าที่พักขึ้นปีนี้ ต้องจัดสรรงบใหม่",
@@ -205,7 +233,7 @@ export const EVENTS: readonly LifeEvent[] = [
     category: "relationship",
     text: "{name}ทำเซอร์ไพร์สวันครบรอบด้วยของขวัญที่คิดมาอย่างดี",
     weight: 3,
-    condition: { married: true, minHappiness: 40 },
+    condition: { married: true, minBond: 70 },
     effects: { stats: { happiness: 5 } },
   },
   {
@@ -213,17 +241,17 @@ export const EVENTS: readonly LifeEvent[] = [
     category: "relationship",
     text: "ทะเลาะกับคู่ครองเรื่องงานบ้าน ต้องนั่งคุยกันอย่างจริงจัง",
     weight: 3,
-    condition: { married: true },
+    condition: { married: true, maxBond: 55 },
     effects: {},
     options: [
       {
         text: "นั่งคุยกันจนเข้าใจ",
-        effects: { stats: { happiness: 1, health: -1 } },
+        effects: { stats: { happiness: -1, health: -1 } },
         resultText: "คุยกับคู่ครองกันจนเข้าใจ ต่างคนต่างเหนื่อยแต่จบดี",
       },
       {
         text: "ปล่อยให้เรื่องนี้ผ่านไป",
-        effects: { stats: { happiness: -4, health: 1 } },
+        effects: { stats: { happiness: -5, health: 1 } },
         resultText: "ปล่อยเรื่องทะเลาะค้างไว้ ความห่างค่อย ๆ ก่อตัวขึ้น",
       },
     ],

@@ -1,5 +1,6 @@
 import type { JobSpec } from "./JobSpec";
 import type { LifeEvent } from "./LifeEvent";
+import type { HomeSpec } from "./HomeSpec";
 
 /**
  * Everything the core needs from the content layer, injected once.
@@ -23,5 +24,6 @@ export interface GameContent {
   };
   readonly familyNames: readonly string[];
   readonly jobs: readonly JobSpec[];
+  readonly homes: readonly HomeSpec[];
   readonly events: readonly LifeEvent[];
 }

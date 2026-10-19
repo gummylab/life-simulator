@@ -20,6 +20,8 @@ const REASON_LABELS: Record<ActionBlockReason, string> = {
   partner: "ยังไม่มีคนรัก",
   taken: "มีคนรักอยู่แล้ว",
   spouse: "ต้องแต่งงานก่อน",
+  alone: "ไม่มีใครในครอบครัวให้ใช้เวลา",
+  orphan: "ไม่มีพ่อแม่ให้ดูแล",
   done: "ทำไปแล้ว",
 };
 

@@ -26,6 +26,7 @@ import { SuccessionView } from "./SuccessionView";
 import { TimelineView } from "./TimelineView";
 import { YearEventView } from "./YearEventView";
 import { YearFeedView } from "./YearFeedView";
+import { HousingView } from "./HousingView";
 import { icon, type IconName } from "./icons";
 
 /** The market can move while a session is open. */
@@ -83,6 +84,7 @@ export class App {
   private showFullYearFeed = false;
   private showBlockedActions = false;
   private showCareer = false;
+  private showHousing = false;
   private showSummaryLog = false;
   /** Screen identity of the last render, so a switch can reset scrolling. */
   private screenKey = "";
@@ -225,7 +227,7 @@ export class App {
         ${game.pendingEvent ? new YearEventView(game.pendingEvent).render() : nothing}
         ${new YearFeedView(state.year, state.timeline, this.showFullYearFeed).render()}
         ${new MenuView(menuEntries, rateUsd, game.seenActions, this.showBlockedActions).render()}
-        ${this.careerTemplate(game, rateUsd)}
+        ${this.careerTemplate(game, rateUsd)} ${this.housingTemplate(game, rateUsd)}
       `;
     } else {
       tabContent = this.summaryTemplate(game, rateUsd);
@@ -244,6 +246,7 @@ export class App {
             rateUsd,
             game.stageLabel(),
             this.hudExpanded,
+            game.home?.label ?? "อยู่กับครอบครัว",
           ).render()
         : nothing;
 
@@ -321,6 +324,25 @@ export class App {
     );
     const view = new CareerView(game, rateUsd, this.showAllJobs);
     return this.showCareer || hasOpenJob ? view.render() : view.statusRow();
+  }
+
+  /**
+   * The housing block on the life tab: one status row until the player taps
+   * it, matching the jobs panel so the two behave the same way.
+   */
+  private housingTemplate(game: Game, rateUsd: number): TemplateResult {
+    const content = game.gameContent;
+    if (!content || content.homes.length === 0) {
+      return html``;
+    }
+    // Hidden until a place of their own is even possible, the same way the
+    // jobs panel waits for the youngest job's age.
+    const youngest = Math.min(...content.homes.map((home) => home.minAge));
+    if (game.character.home === null && game.age < youngest) {
+      return html``;
+    }
+    const view = new HousingView(game, rateUsd);
+    return this.showHousing ? view.render() : view.statusRow();
   }
 
   /** Year button plus the always-visible tab bar, with the toast above them. */
@@ -493,11 +515,30 @@ export class App {
       return;
     }
 
-    // Career commands come from the jobs panel, not the action list.
+    // Career and housing commands come from their own panels.
     if (command === "quit-job") {
       game.quitJob();
       // The player is looking at the panel; keep it open after the change.
       this.showCareer = true;
+      this.persist();
+      this.render();
+      return;
+    }
+    if (command === "home:family") {
+      if (game.moveInWithFamily()) {
+        this.showHousing = true;
+        this.persist();
+        this.render();
+      }
+      return;
+    }
+    if (command.startsWith("home:")) {
+      const home = GAME_CONTENT.homes.find((candidate) => candidate.id === command.slice(5));
+      if (home) {
+        game.moveHome(home);
+      }
+      // The player is looking at the panel; keep it open after the change.
+      this.showHousing = true;
       this.persist();
       this.render();
       return;
@@ -565,6 +606,9 @@ export class App {
         break;
       case "toggle-jobs":
         this.showAllJobs = !this.showAllJobs;
+        break;
+      case "toggle-housing":
+        this.showHousing = !this.showHousing;
         break;
       case "toggle-summary-log":
         this.showSummaryLog = !this.showSummaryLog;

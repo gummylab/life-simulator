@@ -401,12 +401,12 @@ describe("Phase 5 turn-loop UX", () => {
     persistSave(serializeGame(state, 100_000));
 
     const root = mount();
-    expect(root.querySelector(".status-row")).not.toBeNull();
+    expect(root.querySelector(".status-row-jobs")).not.toBeNull();
     expect(root.textContent).toContain("พนักงานพาร์ตไทม์ร้านสะดวกซื้อ ระดับ 5");
     expect(root.querySelector("[data-do='toggle-jobs']")).toBeNull();
 
     root.querySelector<HTMLButtonElement>("[data-do='toggle-career']")?.click();
-    expect(root.querySelector(".status-row")).toBeNull();
+    expect(root.querySelector(".status-row-jobs")).toBeNull();
     expect(root.querySelector("[data-do='toggle-jobs']")).not.toBeNull();
     expect(root.querySelector("[data-do='quit-job']")).not.toBeNull();
   });

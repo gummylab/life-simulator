@@ -27,6 +27,7 @@ import {
   FastForward,
   Film,
   Gem,
+  Gift,
   GraduationCap,
   Hand,
   Heart,
@@ -95,6 +96,7 @@ export const ICON_SET = {
   FastForward,
   Film,
   Gem,
+  Gift,
   GraduationCap,
   Hand,
   Heart,
@@ -160,6 +162,9 @@ export const ACTION_ICONS: Readonly<Record<string, IconName>> = {
   marry: "Gem",
   divorce: "Unlink",
   "have-child": "Baby",
+  "family-time": "Users",
+  "gift-partner": "Gift",
+  "help-parents": "House",
 };
 
 function escapeAttr(value: unknown): string {

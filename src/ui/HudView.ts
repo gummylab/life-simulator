@@ -27,6 +27,8 @@ export class HudView {
     private readonly stageLabel = "",
     /** Whether the bar is expanded into the full detail block. */
     private readonly expanded = false,
+    /** Where the character lives, e.g. "บ้านเช่า"; empty before they move out. */
+    private readonly homeLabel = "",
   ) {}
 
   render(): TemplateResult {
@@ -96,6 +98,9 @@ export class HudView {
             ? html`<span class="chip"
                 >${icon("GraduationCap", 12)}${this.stageLabel}</span
               >`
+            : nothing}
+          ${this.homeLabel
+            ? html`<span class="chip">${icon("House", 12)}${this.homeLabel}</span>`
             : nothing}
         </div>
 

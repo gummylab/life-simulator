@@ -23,6 +23,8 @@ export interface CharacterSpec {
   readonly stats?: Partial<Record<StatKey, number>>;
   /** Stable person id; defaults to a name-and-year handle for determinism. */
   readonly id?: string;
+  /** Id of the starting home; null means living with the family. */
+  readonly home?: string | null;
 }
 
 /**
@@ -71,6 +73,8 @@ export class Character {
   money: number;
   /** Tiring actions drain this; rest restores it. Never leaves 0..100. */
   energy: number;
+  /** Id of the current home, or null while living with the family (ADR 0020). */
+  home: string | null;
   alive = true;
   deathCause: DeathCause | null = null;
   /** Education, job and family all live on the character: they are per-life. */
@@ -87,6 +91,7 @@ export class Character {
     this.maxLifespan = spec.maxLifespan;
     this.money = spec.money;
     this.energy = Math.min(ENERGY_MAX, Math.max(0, spec.energy ?? ENERGY_MAX));
+    this.home = spec.home ?? null;
     this.stats = new StatBlock(spec.stats);
     // Phase 2 state starts empty; systems fill it in as the years pass.
     this.education = {

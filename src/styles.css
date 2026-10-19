@@ -1081,6 +1081,49 @@ button,
   color: var(--muted);
 }
 
+/* Closeness to one relative, in the same colour language as the four stats */
+.bond {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.bond-bar {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.bond-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.bond-fill.low {
+  background: var(--danger);
+}
+
+.bond-fill.mid {
+  background: var(--warn);
+}
+
+.bond-value {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.person[data-dead="true"] {
+  opacity: 0.7;
+}
+
 /* ---------------------------------------------------------------- helpers */
 
 .muted {

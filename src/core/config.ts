@@ -57,6 +57,42 @@ export function allowanceForAge(age: number): number {
  * All numbers live here so a single file stays the tuning surface.
  * ------------------------------------------------------------------ */
 
+/* ------------------------------------------------- Phase 9: family bond */
+
+/** Bond a relative starts with; also the value older saves are given. */
+export const BOND_DEFAULT = 60;
+/** Bond lost every year the player does not spend time with a relative. */
+export const BOND_DECAY = 3;
+/** Bond gained per family action, keyed by the action's special id. */
+export const BOND_GAIN: Readonly<Record<"family-time" | "gift-partner" | "help-parents", number>> = {
+  "family-time": 12,
+  "gift-partner": 18,
+  "help-parents": 14,
+};
+
+/* ---------------------------------------------- Phase 10: household cost */
+
+/**
+ * Housing tiers in BTC: what it costs to move in, and what it costs every
+ * year that follows. Keyed by home id so content/homes.ts reads like
+ * content/jobs.ts does with SALARY.
+ */
+export const HOUSING: Readonly<
+  Record<string, { readonly down: number; readonly yearly: number }>
+> = {
+  "rent-room": { down: 0.0002, yearly: 0.0004 },
+  "rent-house": { down: 0.0006, yearly: 0.0008 },
+  "own-house": { down: 0.004, yearly: 0.0003 },
+};
+
+/** Share of a down payment returned when moving out of a home. */
+export const HOME_RESALE_SHARE = 0.5;
+
+/** Yearly cost of one dependent child, in BTC. */
+export const CHILD_COST = 0.0002;
+/** Age at which a child stops costing money. */
+export const CHILD_DEPENDENT_AGE = 18;
+
 /** Thai education stages by age band. Ages fall into exactly one stage. */
 export const PRIMARY_MIN_AGE = 6;
 export const SECONDARY_MIN_AGE = 12;

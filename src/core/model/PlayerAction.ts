@@ -6,7 +6,10 @@ export type SpecialAction =
   | "date"
   | "marry"
   | "divorce"
-  | "have-child";
+  | "have-child"
+  | "family-time"
+  | "gift-partner"
+  | "help-parents";
 
 /**
  * One option the player can pick during a year.

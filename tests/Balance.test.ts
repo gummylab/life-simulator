@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { ACTIONS } from "../src/content/actions";
+import { HOMES } from "../src/content/homes";
 import { JOBS } from "../src/content/jobs";
 import { GAME_CONTENT } from "../src/content/gameContent";
 import { createLife } from "../src/core/GameFactory";
@@ -10,6 +11,10 @@ import { STAT_KEYS } from "../src/core/model/StatBlock";
  * Task 2.8 balance playtests: play whole lives with the real content and
  * prove the numbers stay inside the designed bands. These are statistical
  * guardrails, not exact-value tests, so seeds may wobble within the band.
+ *
+ * Phase 10 broadened the strategy so the guardrail covers the household
+ * bill: a working life now rents at 23 and buys at 35 (ADR 0020). The band
+ * was re-measured with that bill in place rather than assumed.
  */
 
 const BIRTH_YEAR = 2026;
@@ -22,12 +27,20 @@ function action(id: string) {
   return found;
 }
 
+function home(id: string) {
+  const found = HOMES.find((candidate) => candidate.id === id);
+  if (found === undefined) {
+    throw new Error(`missing home ${id}`);
+  }
+  return found;
+}
+
 const engineer = JOBS.find((job) => job.id === "engineer");
 
 /**
  * Plays a full life from birth with a fixed strategy: university at 17,
- * engineer career from 22, then dating, marriage and one child. Returns
- * the finished game once the character has died of old age.
+ * engineer career from 22, rent at 23, buy at 35, then dating, marriage and
+ * one child. Returns the finished game once the character has died.
  */
 function playWorkingLife(seed: number): Game {
   const game = createLife(
@@ -44,6 +57,14 @@ function playWorkingLife(seed: number): Game {
     }
     if (age === 22 && engineer) {
       game.applyForJob(engineer);
+    }
+    // A working life moves out and later buys; the household bill is part
+    // of what the band is guarding, so it has to be paid in this playtest.
+    if (age === 23) {
+      game.moveHome(home("rent-house"));
+    }
+    if (age === 35) {
+      game.moveHome(home("own-house"));
     }
     if (age === 25 && game.character.family.partner === null) {
       game.performAction(action("date"));
@@ -78,11 +99,22 @@ describe("balance playtest", () => {
     for (const seed of [11, 47, 90]) {
       const game = playWorkingLife(seed);
       expect(game.character.alive).toBe(false);
-      // Engineer career over 60+ years: comfortable, nowhere near a billion.
-      // At the fallback rate the band reads roughly $25k to $120k.
-      expect(game.character.money).toBeGreaterThan(0.025);
+      // Engineer career over 60+ years, minus rent, a house and children.
+      // The three seeds land between 0.40 and 0.49 BTC; the floor sits far
+      // below that so a wobble cannot make the guardrail flaky, while a
+      // runaway household bill still trips it. At the fallback rate the
+      // band reads roughly $5k to $120k.
+      expect(game.character.money).toBeGreaterThan(0.05);
       expect(game.character.money).toBeLessThan(1.2);
     }
+  });
+
+  test("a working life pays for a home rather than saving every salary", () => {
+    const game = playWorkingLife(11);
+    expect(game.character.home).toBe("own-house");
+    const log = game.gameState.timeline.map((entry) => entry.text).join(" ");
+    expect(log).toContain("เงินดาวน์");
+    expect(log).toContain("ค่าที่อยู่");
   });
 
   test("an idle life lives on allowance and never gets rich", () => {

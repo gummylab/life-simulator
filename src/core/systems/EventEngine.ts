@@ -2,6 +2,7 @@ import type { SeededRng } from "../rng/SeededRng";
 import type { GameContent } from "../model/GameContent";
 import type { EventCondition, EventEffects, LifeEvent } from "../model/LifeEvent";
 import type { GameState, PendingEvent } from "../model/GameState";
+import { bondOf, isAlive } from "../model/Person";
 import { EVENT_YEAR_CHANCE } from "../config";
 import { stageAt } from "./EducationSystem";
 
@@ -84,6 +85,15 @@ export class EventEngine {
     if (condition.minHappiness !== undefined && character.stats.get("happiness") < condition.minHappiness) return false;
     if (condition.minHealth !== undefined && character.stats.get("health") < condition.minHealth) return false;
     if (condition.minMoney !== undefined && character.money < condition.minMoney) return false;
+    // A bond condition is about the partner, so it can only hold while the
+    // partner is around to have a bond with (ADR 0019).
+    if (condition.minBond !== undefined || condition.maxBond !== undefined) {
+      const partner = character.family.partner;
+      if (partner === null || !isAlive(partner)) return false;
+      const bond = bondOf(partner);
+      if (condition.minBond !== undefined && bond < condition.minBond) return false;
+      if (condition.maxBond !== undefined && bond > condition.maxBond) return false;
+    }
     return true;
   }
 

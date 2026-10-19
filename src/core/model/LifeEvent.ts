@@ -23,6 +23,9 @@ export interface EventCondition {
   readonly minHappiness?: number;
   readonly minHealth?: number;
   readonly minMoney?: number;
+  /** Closeness with the partner; both fail when there is no living partner. */
+  readonly minBond?: number;
+  readonly maxBond?: number;
 }
 
 /** Stat deltas and a BTC delta applied when an event fires. */

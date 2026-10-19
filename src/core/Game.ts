@@ -3,12 +3,14 @@ import type { Character, DeathCause } from "./model/Character";
 import type { PlayerAction, SpecialAction } from "./model/PlayerAction";
 import type { GameContent } from "./model/GameContent";
 import type { JobSpec } from "./model/JobSpec";
+import type { HomeSpec } from "./model/HomeSpec";
 import { SeededRng } from "./rng/SeededRng";
 import { AgingSystem } from "./systems/AgingSystem";
 import { CareerSystem, type JobBlockReason } from "./systems/CareerSystem";
 import { DeathSystem } from "./systems/DeathSystem";
 import { EducationSystem } from "./systems/EducationSystem";
 import { EventEngine } from "./systems/EventEngine";
+import { HouseholdSystem, type HomeBlockReason } from "./systems/HouseholdSystem";
 import { RelationshipSystem } from "./systems/RelationshipSystem";
 import {
   allowanceForAge,
@@ -34,6 +36,8 @@ export type ActionBlockReason =
   | "partner"
   | "taken"
   | "spouse"
+  | "alone"
+  | "orphan"
   | "done";
 
 export type PerformActionResult =
@@ -59,6 +63,7 @@ export class Game {
   private readonly career: CareerSystem;
   private readonly relationships: RelationshipSystem;
   private readonly events: EventEngine;
+  private readonly household: HouseholdSystem;
 
   /**
    * content stays optional so a Game built without it (older tests,
@@ -72,6 +77,7 @@ export class Game {
     this.career = new CareerSystem();
     this.relationships = new RelationshipSystem();
     this.events = new EventEngine(this.rng);
+    this.household = new HouseholdSystem();
   }
 
   get gameState(): GameState {
@@ -181,6 +187,11 @@ export class Game {
         return family.married ? null : "partner";
       case "have-child":
         return family.married ? null : "spouse";
+      case "family-time":
+      case "gift-partner":
+      case "help-parents":
+        // A family action needs someone left to care for (ADR 0019).
+        return this.relationships.blockReason(special, this.state);
       default:
         return null;
     }
@@ -245,6 +256,11 @@ export class Game {
       case "have-child":
         this.withContent((content) => this.relationships.haveChild(this.state, content, this.rng));
         break;
+      case "family-time":
+      case "gift-partner":
+      case "help-parents":
+        this.relationships.runFamilyAction(special, this.state);
+        break;
     }
   }
 
@@ -277,6 +293,48 @@ export class Game {
     }
     this.career.leaveJob(this.state, this.content, "ออกจากงาน");
     this.syncRngState();
+  }
+
+  /** The home the character lives in, or null for the family home. */
+  get home(): HomeSpec | null {
+    return this.content === null ? null : this.household.homeOf(this.state, this.content);
+  }
+
+  /** What the household costs every year: home upkeep plus dependent children. */
+  get yearlyHousingCost(): number {
+    return this.content === null ? 0 : this.household.yearlyCost(this.state, this.content);
+  }
+
+  /** Whether moving into this home is possible now, and why not when it is not. */
+  homeBlockReason(home: HomeSpec): HomeBlockReason | null {
+    if (this.content === null) {
+      return "age";
+    }
+    const blocked = this.household.blockReason(this.state, home);
+    if (blocked !== null) {
+      return blocked;
+    }
+    return this.household.canAfford(this.state, this.content, home) ? null : "money";
+  }
+
+  /** Moves into a home the player picked from the housing panel. */
+  moveHome(home: HomeSpec): boolean {
+    const content = this.content;
+    if (content === null || this.homeBlockReason(home) !== null) {
+      return false;
+    }
+    this.household.moveIn(this.state, content, home);
+    return true;
+  }
+
+  /** Moves back in with the family; the old place is sold on the way out. */
+  moveInWithFamily(): boolean {
+    const content = this.content;
+    if (content === null || this.state.character.home === null) {
+      return false;
+    }
+    this.household.moveInWithFamily(this.state, content);
+    return true;
   }
 
   /**
@@ -314,6 +372,7 @@ export class Game {
       this.state.committedTime = 0;
       this.education.startYear(this.state, this.content);
       this.career.startYear(this.state, this.content);
+      this.household.startYear(this.state, this.content);
       this.rollEvent(this.content);
     }
 
@@ -322,6 +381,14 @@ export class Game {
 
     if (outcome.died) {
       character.die(outcome.cause);
+    }
+
+    // Relatives age and pass away after the player's own roll. Keeping
+    // these draws last means the same seed still produces the same player
+    // life it did before the family ever had a bond (ADR 0019).
+    if (character.alive) {
+      this.relationships.rollFamilyDeaths(this.state, this.rng);
+      this.relationships.applyBondDecay(this.state);
     }
 
     this.state.timeLeft = Math.max(0, timeBudgetForAge(age) - this.state.committedTime);

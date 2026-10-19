@@ -90,6 +90,11 @@ export function continueLife(plan: SuccessionPlan, previous: GameState, content?
   });
 
   // The heir's parents are already filed in the dynasty tree, so no new
-  // birth family is rolled here.
+  // birth family is rolled here (ADR 0019).
+  const bloodParent = plan.tree.find((person) => person.id === plan.heir.parentId);
+  if (bloodParent !== undefined) {
+    character.family.parents.push({ ...bloodParent });
+  }
+
   return new Game(state, content);
 }

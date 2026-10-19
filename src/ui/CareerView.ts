@@ -94,7 +94,7 @@ export class CareerView {
       ? `${spec.label} ระดับ ${character.job.level}`
       : "ยังไม่มีงานทำ";
     return html`
-      <section class="panel status-row">
+      <section class="panel status-row status-row-jobs">
         <button type="button" class="row-button" data-do="toggle-career">
           <span class="action-icon">${icon("Briefcase", 16)}</span>
           <span class="action-label">${label}</span>

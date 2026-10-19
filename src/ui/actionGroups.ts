@@ -39,6 +39,9 @@ export const ACTION_GROUP_OF: Readonly<Record<string, string>> = {
   marry: "love",
   divorce: "love",
   "have-child": "love",
+  "family-time": "love",
+  "gift-partner": "love",
+  "help-parents": "love",
 };
 
 /** Group an action id belongs to; unknown ids fall back to the first block. */

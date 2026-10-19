@@ -1,5 +1,6 @@
 import type { GameContent } from "../core/model/GameContent";
 import { EVENTS } from "./events";
+import { HOMES } from "./homes";
 import { JOBS } from "./jobs";
 import { WORLD } from "./world";
 
@@ -18,5 +19,6 @@ export const GAME_CONTENT: GameContent = {
   givenNames: WORLD.givenNames,
   familyNames: WORLD.familyNames,
   jobs: JOBS,
+  homes: HOMES,
   events: EVENTS,
 };
