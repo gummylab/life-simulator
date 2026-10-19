@@ -2,7 +2,7 @@ import { html, type TemplateResult } from "lit";
 import type { GameState } from "../core/model/GameState";
 import { WORLD } from "../content/world";
 import { icon } from "./icons";
-import { formatUsd } from "./format";
+import { formatBtc, formatUsd } from "./money";
 
 /**
  * The dynasty ends: no living descendant carries the line (Task 3.4).
@@ -28,16 +28,16 @@ export class GameOverView {
         </p>
         <ul class="final-stats">
           <li class="final-stat">
-            ${icon("Hourglass", 14)}<span>จำนวนรุ่นที่ผ่านไป</span
-            ><span class="stat-value">${dynasty.generation}</span>
+            ${icon("Hourglass", 14)}<span>จำนวนรุ่นที่ผ่านไป</span>
+            <span class="stat-value">${dynasty.generation}</span>
           </li>
           <li class="final-stat">
-            ${icon("User", 14)}<span>คนในตระกูลทั้งหมด</span
-            ><span class="stat-value">${dynasty.tree.length}</span>
+            ${icon("Users", 14)}<span>คนในตระกูลทั้งหมด</span>
+            <span class="stat-value">${dynasty.tree.length}</span>
           </li>
           <li class="final-stat">
-            ${icon("Coins", 14)}<span>มรดกสุดท้าย</span
-            ><span class="stat-value">${formatUsd(money * this.rateUsd)}</span>
+            ${icon("Wallet", 14)}<span>มรดกสุดท้าย</span>
+            <span class="stat-value">${formatUsd(money * this.rateUsd)}</span>
           </li>
         </ul>
         <div class="summary-actions">
@@ -53,8 +53,8 @@ export class GameOverView {
             ${icon("ChevronLeft", 16)}ดูชีวประวัติ
           </button>
         </div>
-        <p class="summary-note">
-          มรดกที่ส่งต่อไม่ได้: ${money.toFixed(8)} ${WORLD.currency}
+        <p class="muted summary-note">
+          มรดกที่ส่งต่อไม่ได้: ${formatBtc(money, 8)} ${WORLD.currency}
         </p>
       </section>
     `;

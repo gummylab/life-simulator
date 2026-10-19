@@ -4,23 +4,16 @@ import { STAT_KEYS } from "../core/model/StatBlock";
 import { ENERGY_MAX } from "../core/config";
 import { WORLD } from "../content/world";
 import { icon, STAT_ICONS } from "./icons";
-import { STAT_LABELS } from "./stats";
-import { formatUsd } from "./format";
-
-/** Bar color by value: red below 30, amber below 60, calm green above. */
-function statTone(value: number): string {
-  if (value < 30) return "low";
-  if (value < 60) return "mid";
-  return "";
-}
+import { STAT_LABELS, statTone } from "./stats";
+import { formatBtc, formatUsd } from "./money";
 
 /**
- * Status navbar (Phase 6): one slim row with the four numbers that gate
- * every decision (age, money, time, energy). One tap on the row expands
- * the full detail: identity, stage, meters and stat bars. Collapsed is
- * the default so the first action card stays above the fold on a
- * 375x667 screen. The BTC rate note lives on the more tab: it never
- * changes a decision, so it never spends navbar space.
+ * The status bar above the action menu (ADR 0013, ADR 0014).
+ *
+ * Collapsed it is one button with the four numbers that gate every
+ * decision: age, money, time and energy. Tapping it opens the full detail
+ * block with identity, stage, meters and the four stat bars, so the first
+ * action card still fits above the fold on a 375x667 screen.
  */
 export class HudView {
   constructor(
@@ -32,49 +25,46 @@ export class HudView {
     private readonly rateUsd: number,
     /** Thai school-stage line, e.g. "ชั้นมัธยมปีที่ 3"; empty when not studying. */
     private readonly stageLabel = "",
-    /** Whether the navbar is expanded into the full detail block. */
+    /** Whether the bar is expanded into the full detail block. */
     private readonly expanded = false,
   ) {}
 
   render(): TemplateResult {
-    const character = this.character;
-    const btc = character.money.toFixed(4);
-    // Dollars lead because even four decimals of BTC read poorly at a
-    // glance; the full eight decimals live in the life summary.
-    const fiat = formatUsd(character.money * this.rateUsd);
-
     return html`
       <header class="hud">
-        ${this.bar(fiat, btc)}
+        ${this.bar()}
         ${this.expanded ? this.detail() : nothing}
       </header>
     `;
   }
 
-  /**
-   * The always-visible row. It is one button, so a single tap anywhere
-   * toggles the whole navbar.
-   */
-  private bar(fiat: string, btc: string): TemplateResult {
+  /** The always-visible row: one button, one tap toggles the whole bar. */
+  private bar(): TemplateResult {
+    // Dollars lead because four decimals of BTC read poorly at a glance;
+    // the full eight decimals live in the life summary.
+    const usd = formatUsd(this.character.money * this.rateUsd);
+    const btc = formatBtc(this.character.money);
     return html`
       <button
         type="button"
         class="hud-bar"
         data-do="toggle-hud"
         aria-expanded=${String(this.expanded)}
+        aria-label="รายละเอียดตัวละคร"
       >
-        <span class="chip">${icon("Cake", 13)}${this.age} ปี</span>
+        <span class="chip">${icon("Cake", 12)}${this.age} ปี</span>
         <span class="chip"
-          >${icon("Coins", 13)}${fiat} <span class="muted">(${btc} ${WORLD.currency})</span></span
+          >${icon("Wallet", 12)}${usd}
+          <span class="muted">${btc} ${WORLD.currency}</span></span
         >
-        <span class="chip">${icon("Clock", 13)}${this.timeLeft}/${this.timeBudget}</span>
-        <span class="chip">${icon("Zap", 13)}${this.character.energy}/${ENERGY_MAX}</span>
+        <span class="chip">${icon("Clock", 12)}${this.timeLeft}/${this.timeBudget}</span>
+        <span class="chip">${icon("Zap", 12)}${this.character.energy}/${ENERGY_MAX}</span>
         ${icon(this.expanded ? "ChevronUp" : "ChevronDown", 14)}
       </button>
     `;
   }
 
-  /** Full detail, only while expanded: identity, vitals and stat bars. */
+  /** Full detail: identity, the two meters and the four stat bars. */
   private detail(): TemplateResult {
     const character = this.character;
     // Guards against a zero budget so the bars never divide by zero.
@@ -87,7 +77,7 @@ export class HudView {
     const bars = STAT_KEYS.map((key) => {
       const value = character.stats.get(key);
       return html`
-        <div class="stat">
+        <div class="stat" data-stat=${key}>
           <span class="stat-label">${icon(STAT_ICONS[key], 13)}${STAT_LABELS[key]}</span>
           <span class="stat-bar"
             ><span class="stat-fill ${statTone(value)}" style="width: ${value}%"></span
@@ -101,9 +91,11 @@ export class HudView {
       <div class="hud-detail">
         <div class="hud-line">
           <strong class="hud-name">${character.name}</strong>
-          <span class="chip">${icon("CalendarDays", 13)}ปี ${this.year}</span>
+          <span class="chip">${icon("CalendarDays", 12)}ปี ${this.year}</span>
           ${this.stageLabel
-            ? html`<span class="chip">${icon("GraduationCap", 13)}${this.stageLabel}</span>`
+            ? html`<span class="chip"
+                >${icon("GraduationCap", 12)}${this.stageLabel}</span
+              >`
             : nothing}
         </div>
 

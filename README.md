@@ -22,7 +22,7 @@ bun run build       # typecheck แล้ว build ลง dist/
 bun run preview     # เปิดดู dist/ ที่ build แล้ว
 ```
 
-test ทุกตัวรันบน happy-dom (จำลองเบราว์เซอร์ใน Node) และ network ถูกปิดในระหว่าง test เพื่อให้ test นิ่งเสมอ ไม่มี test ตัวไหนแตะ CoinGecko จริง
+test ทุกตัวรันบน happy-dom (จำลองเบราว์เซอร์ใน Node) และ network ถูกปิดในระหว่าง test เพื่อให้ test นิ่งเสมอ ไม่มี test ตัวไหนแตะ CoinGecko จริง ส่วน `Playtest` ซึ่งขับเกมจริงสี่ชีวิตตั้งแต่เกิดจนตายตรึงนาฬิกาไว้ (`Date.now`) เพราะ seed ของตระกูลมาจากเวลาที่เริ่มชีวิต รันซ้ำจึงได้ผลเดิมทุกครั้ง
 
 ## Deploy ขึ้น GitHub Pages
 
@@ -33,6 +33,8 @@ push ขึ้น branch `main` แล้ว GitHub Actions (`.github/workflows/
 ## โครงสร้างโค้ด
 
 แกนเกมอยู่ใน `src/core/` ซึ่งห้าม import จาก `src/content/` หรือ `src/ui/` (ดู ADR 0001, 0010) เนื้อหาทั้งหมด (ชื่อคน โรงเรียน งาน เหตุการณ์) อยู่ใน `src/content/` และถูกส่งเข้า core ผ่าน `GameContent` ส่วน UI ใช้ lit-html + lucide (ADR 0009) ทุกปุ่มส่ง command ผ่าน `data-do` ให้ `App` เป็นจุดเดียว
+
+UI มีสามแท็บคือ ชีวิต (แถบสถานะ ฟีดรายปี เมนูกิจกรรม และแผงการงาน) ครอบครัว (พ่อแม่ คู่ครอง บุตร และรุ่นของตระกูล) และอื่นๆ (วิธีเล่น บันทึกชีวิต ไฟล์บันทึก และเริ่มใหม่) หน้าตาเป็นธีมมืดโทนถ่านอุ่น ฟอนต์ Kanit สำหรับหัวข้อกับ Noto Sans Thai สำหรับเนื้อความ และทุกการ์ดกิจกรรมบอกผลกระทบต่อค่าสถานะก่อนกด (ADR 0014-0016)
 
 ตัวเลข balance ทั้งหมด (เงินเดือน ค่าเทอม รายจ่าย แถบเวลา พลังงาน) อยู่ใน `src/core/config.ts` ไฟล์เดียว
 
@@ -59,4 +61,4 @@ push ขึ้น branch `main` แล้ว GitHub Actions (`.github/workflows/
 
 - `PLAN.md` — แผนทุก phase และบันทึกการตัดสินใจรายรอบ
 - `GLOSSARY.md` — คำศัพท์เกมและข้อกำหนดในโค้ด
-- `docs/adr/` — Architecture Decision Records ทั้ง 12 ฉบับ
+- `docs/adr/` — Architecture Decision Records ทั้ง 16 ฉบับ

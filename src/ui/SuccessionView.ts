@@ -2,7 +2,7 @@ import { html, nothing, type TemplateResult } from "lit";
 import type { SuccessionPlan } from "../core/systems/SuccessionSystem";
 import { WORLD } from "../content/world";
 import { icon } from "./icons";
-import { formatUsd } from "./format";
+import { formatBtc, formatUsd } from "./money";
 
 /**
  * The hand-off screen between two lives (Task 3.4):
@@ -27,7 +27,12 @@ export class SuccessionView {
     const plan = this.plan;
     return html`
       <section class="panel summary">
-        <h2>${icon("ScrollText", 18)}บันทึกตระกูล</h2>
+        <h2>${icon("TreePine", 18)}บันทึกตระกูล</h2>
+        ${plan
+          ? html`<p class="muted summary-note">
+              ตระกูลเดินต่ออีก ${this.jumpYears} ปีหลังการจากไปของรุ่นก่อน
+            </p>`
+          : nothing}
         ${this.lines.length > 0
           ? html`<ul class="chronicle">
               ${this.lines.map((line) => html`<li>${line}</li>`)}
@@ -51,15 +56,17 @@ export class SuccessionView {
   /** Who the next life is and what they inherit, once the jump is done. */
   private heirBlock(plan: SuccessionPlan): TemplateResult {
     const heir = plan.heir;
-    const fiat = formatUsd(plan.legacyMoney * this.rateUsd);
     return html`
       <div class="heir-card">
+        <span class="heir-title">${icon("Baby", 16)}ทายาทรุ่นที่ ${plan.newGeneration}</span>
         <p>
-          ข้ามเวลาไป ${this.jumpYears} ปีต่อมา ทายาท
-          <strong> ${heir.givenName} ${heir.familyName}</strong> (เกิดปี ${heir.birthYear})
-          จะสืบทอดตระกูลในรุ่นที่ ${plan.newGeneration}
+          <strong>${heir.givenName} ${heir.familyName}</strong> เกิดปี ${heir.birthYear}
+          เติบโตในตระกูล${plan.chronicle.length > 0 ? "ที่เรื่องราวยังถูกเล่าต่อ" : "นี้"}
         </p>
-        <p>มรดกที่ตกถึงมือ: ${fiat} (${plan.legacyMoney.toFixed(8)} ${WORLD.currency})</p>
+        <p class="muted">
+          มรดกที่ตกถึงมือ: ${formatUsd(plan.legacyMoney * this.rateUsd)}
+          (${formatBtc(plan.legacyMoney, 8)} ${WORLD.currency})
+        </p>
       </div>
     `;
   }

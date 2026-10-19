@@ -69,11 +69,11 @@ describe("App smoke test on happy-dom", () => {
     const root = mount();
     startLife(root, "ทดสอบ");
 
-    root.querySelector<HTMLButtonElement>(".action")?.click();
+    root.querySelector<HTMLButtonElement>("[data-do='toys']")?.click();
 
     const feed = root.querySelector(".feed");
     expect(feed).not.toBeNull();
-    // The first baby action is "เล่นของเล่น"; its result must be logged.
+    // "เล่นของเล่น" is the first baby action; its result must be logged.
     expect(feed?.textContent).toContain("ของเล่น");
     // No log tab anymore: the feed lives on the action tab itself.
     expect(root.querySelector("[data-do='tab:log']")).toBeNull();
@@ -98,7 +98,7 @@ describe("App smoke test on happy-dom", () => {
     expect(resumed.textContent).toContain("ต่อเนื่อง");
   });
 
-  test("the navbar shows only on the action tab of a living character", () => {
+  test("the status bar shows only on the life tab of a living character", () => {
     const root = mount();
     startLife(root, "ทดสอบ");
     expect(root.querySelector(".hud")).not.toBeNull();
@@ -106,7 +106,7 @@ describe("App smoke test on happy-dom", () => {
     root.querySelector<HTMLButtonElement>("[data-do='tab:more']")?.click();
     expect(root.querySelector(".hud")).toBeNull();
 
-    root.querySelector<HTMLButtonElement>("[data-do='tab:act']")?.click();
+    root.querySelector<HTMLButtonElement>("[data-do='tab:life']")?.click();
     expect(root.querySelector(".hud")).not.toBeNull();
   });
 
@@ -131,7 +131,7 @@ describe("App smoke test on happy-dom", () => {
   test("the more menu always offers the full life log sub-screen", () => {
     const root = mount();
     startLife(root, "ทดสอบ");
-    root.querySelector<HTMLButtonElement>(".action")?.click();
+    root.querySelector<HTMLButtonElement>("[data-do='toys']")?.click();
     root.querySelector<HTMLButtonElement>("[data-do='tab:more']")?.click();
 
     // The row is permanent, right after the how-to row.
@@ -457,13 +457,14 @@ describe("Phase 5 turn-loop UX", () => {
     const root = mount();
     startLife(root, "ทดสอบ");
 
-    // Age 0 budget is 60 and sleep costs 40, so the hint counts down.
+    // The label names the action, the hint names the cost: age 0 budget is
+    // 60 and sleep costs 40, so the hint counts down as time is spent.
     const hint = () => root.querySelector(".advance-hint")?.textContent ?? "";
-    expect(hint()).toContain("ยังใช้เวลาไม่หมด");
-    expect(hint()).toContain("(60)");
+    expect(hint()).toContain("เหลือเวลาอีก 60");
+    expect(hint()).toContain("อายุ 0 → 1");
 
     root.querySelector<HTMLButtonElement>("[data-do='sleep']")?.click();
-    expect(hint()).toContain("(20)");
+    expect(hint()).toContain("เหลือเวลาอีก 20");
   });
 
   test("the BTC rate note lives on the more tab, not on the HUD", async () => {
@@ -478,5 +479,102 @@ describe("Phase 5 turn-loop UX", () => {
     const rate = root.querySelector(".menu-rate");
     expect(rate).not.toBeNull();
     expect(rate?.textContent).toContain("1 BTC");
+  });
+});
+
+describe("redesigned navigation and decisions (Phase 7)", () => {
+  test("every action row previews its stat deltas before the tap", () => {
+    const root = mount();
+    startLife(root, "ทดสอบ");
+
+    // "เล่นของเล่น" promises +3 ความสุข and +1 ปัญญา; the player must be
+    // able to read that before spending the year's time on it.
+    const card = root.querySelector("[data-do='toys']");
+    expect(card?.textContent).toContain("+3 ความสุข");
+    expect(card?.textContent).toContain("+1 ปัญญา");
+  });
+
+  test("the family tab shows relatives with their ages", () => {
+    const character = makeCharacter({ birthYear: 1996, money: 0.01 });
+    character.family.parents.push(
+      { id: "p1", givenName: "เฮนรี่", familyName: "หนึ่งชีวิต", gender: "male", birthYear: 1966 },
+      { id: "p2", givenName: "ลูน่า", familyName: "คลาร์ก", gender: "female", birthYear: 1968 },
+    );
+    character.family.partner = {
+      id: "p3",
+      givenName: "อวา",
+      familyName: "คลาร์ก",
+      gender: "female",
+      birthYear: 1997,
+    };
+    character.family.married = true;
+    character.family.children.push({
+      id: "c1",
+      givenName: "โนอา",
+      familyName: "หนึ่งชีวิต",
+      gender: "male",
+      birthYear: 2020,
+      parentId: character.id,
+    });
+    const state = new GameState({
+      year: 2026,
+      seed: 3,
+      rngState: 3,
+      character,
+      founderFamilyName: "หนึ่งชีวิต",
+      timeLeft: 50,
+    });
+    persistSave(serializeGame(state, 100_000));
+
+    const root = mount();
+    root.querySelector<HTMLButtonElement>("[data-do='tab:family']")?.click();
+
+    const text = root.textContent ?? "";
+    expect(text).toContain("คนในครอบครัว");
+    expect(text).toContain("เฮนรี่ หนึ่งชีวิต");
+    expect(text).toContain("คู่สมรส · อายุ 29 ปี");
+    expect(text).toContain("โนอา หนึ่งชีวิต");
+    // The status bar belongs to the life tab only.
+    expect(root.querySelector(".hud")).toBeNull();
+  });
+
+  test("an empty family screen says what unlocks it", () => {
+    const root = mount();
+    startLife(root, "ทดสอบ");
+
+    root.querySelector<HTMLButtonElement>("[data-do='tab:family']")?.click();
+    expect(root.textContent).toContain("ยังไม่มีคู่รัก");
+    expect(root.textContent).toContain("ยังไม่มีบุตร");
+  });
+
+  test("the biography folds the whole life log behind one tap", () => {
+    const character = new Character({
+      givenName: "อีธาน",
+      familyName: "มิลเลอร์",
+      gender: "male",
+      birthYear: 1948,
+      maxLifespan: 78,
+      money: 0.4,
+    });
+    character.die("oldAge");
+    const state = new GameState({
+      year: 2026,
+      seed: 9,
+      rngState: 9,
+      character,
+      founderFamilyName: "มิลเลอร์",
+      timeLeft: 0,
+      timeline: [
+        { year: 1948, age: 0, text: "ลืมตาดูโลกที่กรีนฟิลด์" },
+        { year: 2026, age: 78, text: "จากไปอย่างสงบ" },
+      ],
+    });
+    persistSave(serializeGame(state, 100_000));
+
+    const root = mount();
+    // The log starts folded: no timeline list until the player asks.
+    expect(root.querySelector(".timeline")).toBeNull();
+    root.querySelector<HTMLButtonElement>("[data-do='toggle-summary-log']")?.click();
+    expect(root.querySelector(".timeline")?.textContent).toContain("ลืมตาดูโลกที่กรีนฟิลด์");
   });
 });

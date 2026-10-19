@@ -7,3 +7,10 @@ export const STAT_LABELS: Readonly<Record<StatKey, string>> = {
   smarts: "ปัญญา",
   looks: "รูปลักษณ์",
 };
+
+/** Bar tone by value: danger below 30, amber below 60, calm above. */
+export function statTone(value: number): "low" | "mid" | "" {
+  if (value < 30) return "low";
+  if (value < 60) return "mid";
+  return "";
+}

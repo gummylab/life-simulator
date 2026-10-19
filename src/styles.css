@@ -1,17 +1,31 @@
-/* Design tokens: a dark game theme with one neon accent.
-   The engine stays theme-agnostic; every color lives here. */
+/* Design tokens: a memoir theme.
+   Warm charcoal instead of blue-black, one mint accent for anything the
+   player can act on, and a colour per life stat so a bar reads without its
+   label. The engine stays theme-agnostic; every colour lives here (ADR 0014). */
 :root {
-  --bg: #0a0e16;
-  --panel: #131a27;
-  --panel-2: #1a2334;
-  --ink: #e9edf5;
-  --muted: #94a1b6;
-  --line: #263147;
-  --accent: #6ee7a0;
-  --accent-ink: #052415;
-  --warn: #fbbf24;
-  --danger: #f87171;
-  --radius: 14px;
+  --bg: #121010;
+  --bg-2: #171412;
+  --surface: #1b1815;
+  --surface-2: #221e1a;
+  --ink: #f3ece2;
+  --muted: #a2988c;
+  --line: #322b25;
+  --line-soft: #282320;
+  --accent: #7fe3a6;
+  --accent-ink: #06251a;
+  --accent-soft: rgba(127, 227, 166, 0.12);
+  --warn: #f0b64a;
+  --danger: #ef7d72;
+  --stat-health: #ef7d72;
+  --stat-happiness: #f0b64a;
+  --stat-smarts: #79bdf2;
+  --stat-looks: #b79bf0;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+
+  --font-display: "Kanit", system-ui, sans-serif;
+  --font-body: "Noto Sans Thai", "Kanit", system-ui, sans-serif;
   color-scheme: dark;
 }
 
@@ -30,16 +44,28 @@ body {
   justify-content: center;
   background: var(--bg);
   color: var(--ink);
-  font-family: "Kanit", system-ui, sans-serif;
-  font-weight: 300;
-  line-height: 1.6;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.65;
+}
+
+h1,
+h2,
+h3,
+button,
+.chip,
+.stat-value,
+.entry-year,
+.setup-brand {
+  font-family: var(--font-display);
 }
 
 /* The whole game lives inside a phone-sized shell. On a real phone it
-   fills the screen; on desktop the media query below draws a frame. */
+   fills the screen; on desktop the media query below draws the frame. */
 #app {
   width: 100%;
-  max-width: 440px;
+  max-width: 460px;
   height: 100dvh;
   display: flex;
 }
@@ -52,23 +78,6 @@ body {
   background: var(--bg);
 }
 
-/* Fake phone status bar; only visible inside the desktop frame. */
-.device-bar {
-  display: none;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 22px 2px;
-  background: var(--panel);
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.device-icons {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .screen {
   position: relative;
   flex: 1;
@@ -77,32 +86,60 @@ body {
   flex-direction: column;
 }
 
+/* One scroll container for every screen, so switching screens can reset
+   the scroll position in one place. */
 .content {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px 12px 20px;
+  gap: 14px;
+  padding: 14px 14px 22px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
 }
 
-/* Status navbar (Phase 6): slim bar on top, detail only when expanded */
+/* ---------------------------------------------------------------- status bar */
+
 .hud {
   flex: none;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  padding: 10px 14px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line-soft);
+  padding: 10px 12px 12px;
+}
+
+.hud-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.hud-bar .chip {
+  font-size: 0.73rem;
+  padding: 2px 8px;
+}
+
+.hud-bar > .icon {
+  margin-left: auto;
+  color: var(--muted);
 }
 
 .hud-detail {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .hud-line {
@@ -113,13 +150,15 @@ body {
 }
 
 .hud-name {
-  font-weight: 400;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.05rem;
 }
 
 .hud-vitals {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
 .meter {
@@ -127,17 +166,14 @@ body {
   grid-template-columns: auto auto 1fr auto;
   align-items: center;
   gap: 8px;
-  font-size: 0.82rem;
-}
-
-.meter-label {
+  font-size: 0.8rem;
   color: var(--muted);
 }
 
 .meter-bar {
   height: 8px;
   border-radius: 999px;
-  background: var(--line);
+  background: var(--line-soft);
   overflow: hidden;
 }
 
@@ -158,7 +194,15 @@ body {
 
 .meter-value {
   font-variant-numeric: tabular-nums;
-  color: var(--muted);
+}
+
+/* ------------------------------------------------------------- stat bars */
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-top: 4px;
 }
 
 .stat {
@@ -180,7 +224,7 @@ body {
 .stat-bar {
   height: 6px;
   border-radius: 999px;
-  background: var(--line);
+  background: var(--line-soft);
   overflow: hidden;
 }
 
@@ -192,7 +236,24 @@ body {
   transition: width 0.3s ease;
 }
 
-/* Low and amber thresholds so a sagging stat reads at a glance. */
+/* A colour per stat, so the bar itself carries the meaning. */
+.stat[data-stat="health"] .stat-fill {
+  background: var(--stat-health);
+}
+
+.stat[data-stat="happiness"] .stat-fill {
+  background: var(--stat-happiness);
+}
+
+.stat[data-stat="smarts"] .stat-fill {
+  background: var(--stat-smarts);
+}
+
+.stat[data-stat="looks"] .stat-fill {
+  background: var(--stat-looks);
+}
+
+/* Low values still shout, even on the coloured bars. */
 .stat-fill.low {
   background: var(--danger);
 }
@@ -203,61 +264,56 @@ body {
 
 .stat-value {
   font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
-/* One-line status navbar: four decision numbers, tap the row to expand. */
-.hud-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel-2);
-  color: var(--ink);
-  font-family: inherit;
-  font-size: 0.78rem;
-  cursor: pointer;
-}
+/* ------------------------------------------------------------------ panels */
 
-.hud-bar .chip {
-  font-size: 0.74rem;
-  padding: 2px 7px;
-}
-
-.hud-bar > .icon {
-  margin-left: auto;
-  color: var(--muted);
-}
-
-.stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 14px;
-  margin-top: 8px;
-}
-
-/* Panels */
 .panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius);
-  padding: 14px;
+  padding: 16px 14px;
 }
 
 .panel h2 {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.98rem;
+  font-size: 1rem;
   font-weight: 500;
-  margin: 0 0 12px;
+  margin: 0 0 10px;
 }
 
 .panel h2 .icon {
   color: var(--accent);
+}
+
+/* Small section label inside a panel: the action blocks and menu groups. */
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 16px 0 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.group-title .icon {
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+.group-title:first-of-type {
+  margin-top: 6px;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* Small pill used for costs, years and stats */
@@ -265,11 +321,11 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 10px;
+  padding: 2px 9px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: var(--panel-2);
-  font-size: 0.78rem;
+  background: var(--surface-2);
+  font-size: 0.76rem;
   white-space: nowrap;
 }
 
@@ -283,51 +339,77 @@ body {
 
 /* "ใหม่" badge on the first year a card appears */
 .chip-new {
-  color: var(--accent);
+  color: var(--accent-ink);
+  background: var(--accent);
   border-color: var(--accent);
   padding: 0 7px;
-  font-size: 0.66rem;
+  font-size: 0.64rem;
+  font-weight: 500;
 }
 
-/* Year feed: what the current year has recorded so far */
+/* -------------------------------------------------------------- year feed */
+
 .feed {
   border-left: 3px solid var(--accent);
 }
 
 .feed-list {
+  list-style: none;
   margin: 0;
-  padding-left: 18px;
-  font-size: 0.88rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.9rem;
 }
 
-.feed-list li {
-  margin: 4px 0;
+.feed-line {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 9px;
+  align-items: start;
+}
+
+.feed-dot {
+  width: 7px;
+  height: 7px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+/* The newest line is where the player's last tap landed. */
+.feed-line[data-latest] .feed-dot {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.feed-line[data-latest] .feed-text {
+  color: var(--ink);
+}
+
+.feed-text {
+  color: var(--muted);
 }
 
 .feed .ghost {
-  width: 100%;
-  margin-top: 8px;
+  margin-top: 12px;
 }
 
-/* Action cards */
-.actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
+/* ------------------------------------------------------------ action rows */
 
 .action {
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: start;
-  gap: 10px;
-  padding: 12px 10px;
-  border-radius: var(--radius);
+  gap: 11px;
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--line);
-  background: var(--panel-2);
+  background: var(--surface-2);
   color: var(--ink);
-  font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   text-align: left;
   cursor: pointer;
 }
@@ -337,158 +419,74 @@ body {
   margin-top: 2px;
 }
 
-.action-main {
+.action-body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
 .action-label {
-  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-weight: 500;
 }
 
-.action-cost {
+.action-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 5px;
 }
 
-.action-cost .chip {
-  padding: 1px 7px;
-  font-size: 0.68rem;
+.action-meta .chip {
+  padding: 1px 8px;
+  font-size: 0.71rem;
 }
 
 .action-reason {
-  grid-column: 1 / -1;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--warn);
 }
 
+/* A blocked card stays readable: dashed border instead of a faded body,
+   so the reason it names is the easiest thing on the card to read. */
 .action:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--line);
 }
 
-/* Menu list on the more tab */
-.menu {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.menu-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 13px 12px;
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: var(--panel-2);
-  color: var(--ink);
-  font-family: inherit;
-  font-size: 0.95rem;
-  text-align: left;
-  cursor: pointer;
-}
-
-.menu-row-icon {
-  color: var(--accent);
-}
-
-.menu-row-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.menu-row-note {
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.menu-row-chevron {
+.action:disabled .action-label,
+.action:disabled .action-icon {
   color: var(--muted);
 }
 
-/* BTC rate note, moved here from the HUD (Phase 5) */
-.menu-rate {
-  margin: 12px 0 0;
-  font-size: 0.75rem;
-  text-align: center;
-}
+/* ------------------------------------------------------------ career panel */
 
-/* Bottom dock: year button above the three-tab nav */
-.dock {
-  flex: none;
+.job-current {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 12px calc(8px + env(safe-area-inset-bottom));
-  background: var(--panel);
-  border-top: 1px solid var(--line);
+  padding: 11px 12px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
 }
 
-.advance {
+.job-current-title {
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 46px;
-  border: none;
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-family: inherit;
-  font-size: 1rem;
+  gap: 7px;
+  font-family: var(--font-display);
   font-weight: 500;
-  cursor: pointer;
 }
 
-/* Armed restart button: second tap within three seconds wipes the save */
-.advance.confirm {
-  background: var(--warn);
-  color: #2a1c02;
-}
-
-/* "Still have time left" hint under the year button */
-.advance-hint {
-  font-size: 0.72rem;
-  font-weight: 300;
-  opacity: 0.75;
-}
-
-/* Secondary button used under the primary one on summary screens */
-.ghost {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 44px;
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: none;
-  color: var(--ink);
-  font-family: inherit;
-  font-size: 0.95rem;
-  cursor: pointer;
-}
-
-.summary-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-/* Collapsed jobs row on the act tab: one tap expands the full panel */
 .status-row {
-  padding: 10px;
+  padding: 6px 10px;
 }
 
 .row-button {
@@ -497,11 +495,10 @@ body {
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 8px 6px;
+  padding: 9px 4px;
   border: none;
   background: none;
   color: var(--ink);
-  font-family: inherit;
   font-size: 0.9rem;
   text-align: left;
   cursor: pointer;
@@ -514,6 +511,120 @@ body {
   font-size: 0.8rem;
 }
 
+/* ---------------------------------------------------------------- menu list */
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 0.94rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-row-icon {
+  color: var(--accent);
+}
+
+.menu-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.menu-row-note {
+  color: var(--muted);
+  font-size: 0.77rem;
+}
+
+.menu-row-chevron {
+  color: var(--muted);
+}
+
+.menu-row-danger .menu-row-icon {
+  color: var(--warn);
+}
+
+.menu-rate {
+  margin: 14px 0 0;
+  font-size: 0.74rem;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------- dock */
+
+.dock {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px calc(8px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--line-soft);
+}
+
+/* The year button: the label names the action, the hint names the cost. */
+.advance {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1px;
+  width: 100%;
+  min-height: 50px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.advance-label {
+  display: block;
+}
+
+.advance-hint {
+  font-size: 0.72rem;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+/* Ending early is the secondary path: choosing what to do comes first. */
+.advance-early {
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.advance-early .advance-hint {
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* Armed restart button: second tap within three seconds wipes the save */
+.advance.confirm {
+  background: var(--warn);
+  color: #2a1c02;
+}
+
 .tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -524,12 +635,11 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 4px 0;
+  gap: 3px;
+  padding: 5px 0;
   border: none;
   background: none;
   color: var(--muted);
-  font-family: inherit;
   font-size: 0.72rem;
   cursor: pointer;
 }
@@ -538,23 +648,23 @@ body {
   color: var(--accent);
 }
 
-/* Transient year-change toast, floating above the dock */
+/* Transient year-change toast, anchored just above the dock */
 .toast {
   position: absolute;
   left: 12px;
   right: 12px;
-  bottom: 148px;
+  bottom: calc(100% + 8px);
   z-index: 40;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--accent);
-  background: var(--panel-2);
+  background: var(--surface-2);
   color: var(--accent);
-  font-size: 0.85rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  font-size: 0.84rem;
+  box-shadow: var(--shadow);
   animation: toast-in 0.22s ease-out;
 }
 
@@ -565,7 +675,8 @@ body {
   }
 }
 
-/* Life log */
+/* ------------------------------------------------------------- life log */
+
 .timeline {
   list-style: none;
   margin: 0;
@@ -573,8 +684,11 @@ body {
 }
 
 .timeline li {
-  padding: 8px 0;
-  border-bottom: 1px dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line-soft);
   font-size: 0.9rem;
 }
 
@@ -584,41 +698,68 @@ body {
 
 .entry-year {
   color: var(--muted);
-  font-size: 0.8rem;
-  margin-right: 8px;
+  font-size: 0.75rem;
 }
 
 .entry-count {
   color: var(--accent);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   margin-left: 6px;
 }
 
-.onboarding ul {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 0.88rem;
+/* --------------------------------------------------------- how-to screen */
+
+.onboarding .tip-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.onboarding li {
-  margin: 6px 0;
+.tip {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 11px;
+  align-items: start;
 }
 
-.muted {
-  color: var(--muted);
+.tip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
-/* Birth setup form */
+.tip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.9rem;
+}
+
+.tip-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+}
+
+/* -------------------------------------------------------- birth setup form */
+
 .setup-brand {
   font-weight: 500;
-  letter-spacing: 0.03em;
-  margin-bottom: 10px;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
 }
 
 .setup-brand span {
   color: var(--muted);
-  font-weight: 300;
-  font-size: 0.85rem;
+  font-weight: 400;
+  font-size: 0.82rem;
 }
 
 .setup .field {
@@ -629,7 +770,7 @@ body {
 .setup .field-label {
   display: block;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   margin-bottom: 6px;
 }
 
@@ -639,14 +780,13 @@ body {
 }
 
 .setup input[type="text"] {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   font-family: inherit;
   font-size: 1rem;
-  padding: 10px 12px;
+  padding: 11px 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
   color: var(--ink);
 }
 
@@ -655,103 +795,240 @@ body {
   border-color: var(--accent);
 }
 
-.setup button {
-  font-family: inherit;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel-2);
-  color: var(--ink);
-  padding: 8px 14px;
-  cursor: pointer;
+.setup form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
+.setup form .ghost {
+  min-height: 42px;
+}
+
+/* Gender as a segmented control instead of three loose radios. */
 .choices {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
 }
 
 .choice {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--ink);
-  font-size: 0.95rem;
+  flex: 1;
+  position: relative;
 }
 
 .choice input {
-  accent-color: var(--accent);
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
-/* Death summary */
-.summary ul {
-  margin: 0 0 8px;
+.choice span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.choice input:checked + span {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.choice input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------- biography */
+
+.hero-years {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.fact-list {
+  margin: 0 0 6px;
   padding-left: 18px;
+  font-size: 0.9rem;
+}
+
+.fact-list li {
+  margin: 5px 0;
+}
+
+.summary-note {
+  margin: 6px 0 10px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.summary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .final-stats {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px 16px;
+  flex-direction: column;
+  gap: 8px;
   list-style: none;
   margin: 12px 0 0;
   padding: 0;
-  color: var(--muted);
   font-size: 0.88rem;
 }
 
 .final-stat {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
 }
 
 .final-stat .icon {
   color: var(--accent);
 }
 
-/* Small muted paragraph inside summary panels (jump note, hints) */
-.summary-note {
-  margin: 4px 0 8px;
+.final-stat > span:first-of-type {
   color: var(--muted);
-  font-size: 0.88rem;
 }
 
-/* Family chronicle: one line per crossed generation, oldest first */
+/* Secondary button used under the primary one on summary screens */
+.ghost {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------- chronicle */
+
 .chronicle {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   list-style: none;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   padding: 0;
+  font-size: 0.9rem;
+}
+
+.chronicle li {
+  padding-left: 14px;
+  position: relative;
   color: var(--ink);
-  font-size: 0.92rem;
 }
 
 .chronicle li::before {
-  content: "•";
-  margin-right: 8px;
-  color: var(--accent);
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 /* The heir preview on the succession screen: who takes over next */
 .heir-card {
-  margin: 10px 0;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--accent);
   border-radius: var(--radius);
-  background: var(--surface-2, rgba(255, 255, 255, 0.03));
-  font-size: 0.92rem;
-  color: var(--ink);
+  background: var(--accent-soft);
+  font-size: 0.9rem;
+}
+
+.heir-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--accent);
 }
 
 .heir-card p {
-  margin: 0 0 6px;
+  margin: 0;
 }
 
-.heir-card p:last-child {
-  margin-bottom: 0;
+/* --------------------------------------------------------- family screen */
+
+.person {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.person-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--line-soft);
+  color: var(--muted);
+}
+
+.person[data-gender="female"] .person-icon {
+  color: var(--stat-looks);
+}
+
+.person[data-gender="male"] .person-icon {
+  color: var(--stat-smarts);
+}
+
+.person-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.person-name {
+  font-family: var(--font-display);
+  font-weight: 500;
+}
+
+.person-meta {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------- helpers */
+
+.muted {
+  color: var(--muted);
 }
 
 /* Shared button behavior with a light game feel */
@@ -759,11 +1036,12 @@ button {
   transition:
     transform 0.1s ease,
     border-color 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    background-color 0.15s ease;
 }
 
 button:not(:disabled):active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
 button:focus-visible {
@@ -785,7 +1063,7 @@ button:focus-visible {
   body {
     align-items: center;
     padding: 24px 0;
-    background: radial-gradient(900px 480px at 50% -10%, #16233a 0%, var(--bg) 60%);
+    background: radial-gradient(900px 520px at 50% -10%, #241d19 0%, var(--bg) 62%);
   }
 
   #app {
@@ -793,26 +1071,30 @@ button:focus-visible {
   }
 
   .device {
-    border: 10px solid #04060b;
+    border: 10px solid #0b0908;
     border-radius: 38px;
-    outline: 1px solid #2a3650;
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
+    outline: 1px solid #38302a;
+    box-shadow: var(--shadow);
     overflow: hidden;
-  }
-
-  .device-bar {
-    display: flex;
   }
 }
 
 /* Very narrow phones: keep two stat columns but shrink the type */
 @media (max-width: 380px) {
+  body {
+    font-size: 14px;
+  }
+
   .stat {
     font-size: 0.72rem;
     gap: 6px;
   }
 
   .action {
-    font-size: 0.85rem;
+    font-size: 0.87rem;
+  }
+
+  .hud-bar .chip {
+    font-size: 0.68rem;
   }
 }

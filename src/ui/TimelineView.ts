@@ -28,30 +28,44 @@ export function groupTimelineEntries(entries: readonly TimelineEntry[]): Grouped
   return groups;
 }
 
+/**
+ * The life log list itself, shared by the log sub-screen and the biography.
+ * Entries must already be newest first; the caller decides the order so the
+ * two screens cannot drift apart.
+ */
+export function timelineList(entries: readonly TimelineEntry[]): TemplateResult {
+  if (entries.length === 0) {
+    return html`<p class="muted">ยังไม่มีเรื่องราวในชีวิต เริ่มด้วยการเลือกกิจกรรมแรกได้เลย</p>`;
+  }
+  return html`
+    <ol class="timeline">
+      ${groupTimelineEntries(entries).map(
+        (entry) => html`
+          <li>
+            <span class="entry-year">ปี ${entry.year} · อายุ ${entry.age}</span>
+            <span class="entry-text"
+              >${entry.text}
+              ${entry.count > 1
+                ? html`<span class="entry-count">×${entry.count}</span>`
+                : nothing}</span
+            >
+          </li>
+        `,
+      )}
+    </ol>
+  `;
+}
+
 /** Full life log sub-screen: newest entry on top, repeats merged. */
 export class TimelineView {
   constructor(private readonly entries: readonly TimelineEntry[]) {}
 
   render(): TemplateResult {
-    const items =
-      this.entries.length === 0
-        ? html`<li class="muted">ยังไม่มีเรื่องราวในชีวิต เริ่มด้วยการเลือกกิจกรรมแรกได้เลย</li>`
-        : groupTimelineEntries(this.entries).map(
-            (entry) => html`
-              <li>
-                <span class="entry-year">ปี ${entry.year} (อายุ ${entry.age})</span>
-                ${entry.text}
-                ${entry.count > 1
-                  ? html`<span class="entry-count">×${entry.count}</span>`
-                  : nothing}
-              </li>
-            `,
-          );
-
     return html`
       <section class="panel">
         <h2>${icon("ScrollText", 18)}บันทึกชีวิต</h2>
-        <ol class="timeline">${items}</ol>
+        <p class="muted summary-note">เรียงใหม่สุดไว้บนสุด ทุกบรรทัดของชีวิตอยู่ในนี้</p>
+        ${timelineList(this.entries)}
         <div class="summary-actions">
           <button type="button" class="ghost" data-do="back">
             ${icon("ChevronLeft", 16)}กลับ

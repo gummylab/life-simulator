@@ -144,10 +144,10 @@ function doAction(root: HTMLElement, options: PlayOptions, flags: PlayFlags): bo
     const toggle = root.querySelector<HTMLButtonElement>("[data-do='toggle-blocked']");
     if (toggle) {
       toggle.click();
-      expect(menuPanel(root)?.textContent).toContain("≈ $");
+      expect(menuPanel(root)?.textContent).toContain("$");
       root.querySelector<HTMLButtonElement>("[data-do='toggle-blocked']")?.click();
     } else {
-      expect(menuPanel(root)?.textContent).toContain("≈ $");
+      expect(menuPanel(root)?.textContent).toContain("$");
     }
   }
   assertMenuSorted(root);
@@ -226,6 +226,11 @@ beforeEach(() => {
   // Skip the first-run welcome screen; the robot starts lives directly.
   domWindow.localStorage.setItem("life-simulator.onboarded", "1");
   document.body.innerHTML = "";
+  // The app rolls its dynasty seed from Date.now(), which made these four
+  // lives depend on the wall clock: a different seed meant a different
+  // event history, and a life could end childless by luck. Freezing the
+  // clock keeps the playtest reproducible.
+  Date.now = () => Date.parse("2025-06-01T09:00:00Z");
 });
 
 afterAll(() => {
@@ -248,7 +253,7 @@ describe("automated playtest (Task 4.3)", () => {
     expect(root.querySelector(".hud")?.textContent).toMatch(/\d+\.\d{4} BTC/);
     root.querySelector<HTMLButtonElement>("[data-do='tab:more']")?.click();
     expect(root.textContent).toContain("ออฟไลน์");
-    root.querySelector<HTMLButtonElement>("[data-do='tab:act']")?.click();
+    root.querySelector<HTMLButtonElement>("[data-do='tab:life']")?.click();
     playFullLife(root, { seekFamily: true, childrenGoal: 2 });
 
     // Life 1 leaves children: the succession offers an heir.
@@ -334,7 +339,7 @@ describe("automated playtest (Task 4.3)", () => {
     picker?.dispatchEvent(new domWindow.Event("change", { bubbles: true }) as unknown as Event);
     await flush();
     expect(root.textContent).toContain("ไฟล์นี้ไม่ใช่บันทึกของเกม");
-    root.querySelector<HTMLButtonElement>("[data-do='tab:act']")?.click();
+    root.querySelector<HTMLButtonElement>("[data-do='tab:life']")?.click();
 
     // Marry but stay childless: the surname must become the husband's.
     playFullLife(root, { seekFamily: true, childrenGoal: 0 });

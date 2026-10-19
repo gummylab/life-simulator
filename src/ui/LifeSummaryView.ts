@@ -5,13 +5,15 @@ import { DEATH_CAUSE_LABELS } from "../content/deathCauses";
 import { GAME_CONTENT } from "../content/gameContent";
 import { WORLD } from "../content/world";
 import { icon, STAT_ICONS } from "./icons";
-import { STAT_LABELS } from "./stats";
-import { formatUsd } from "./format";
+import { STAT_LABELS, statTone } from "./stats";
+import { formatBtc, formatUsd } from "./money";
+import { timelineList } from "./TimelineView";
 
 /**
- * The end-of-life screen, doubling as the restart farewell:
+ * The end-of-life screen, doubling as the restart farewell (ADR 0014):
  * - a dead character gets the full biography (birth, education, last
- *   career, inheritance, cause of death) with a copy button,
+ *   career, inheritance, cause of death), the life log folded underneath,
+ *   and a copy button,
  * - a living one gets "so far" wording with a way back to the game.
  * The restart button wipes the save only on the second tap within
  * three seconds (confirmPending comes from App).
@@ -26,6 +28,8 @@ export class LifeSummaryView {
      * "extinct" opens the dynasty's final stats. Null while still alive.
      */
     private readonly endState: "heir" | "extinct" | null = null,
+    /** Whether the life log under the facts is expanded. */
+    private readonly showFullLog = false,
   ) {}
 
   /** Biography as plain text, one fact per line, for the clipboard. */
@@ -50,7 +54,6 @@ export class LifeSummaryView {
     }
 
     const education = character.education;
-    const school = education.universitySchool ?? education.secondarySchool ?? education.primarySchool;
     if (education.universitySchool !== null) {
       facts.push(`การศึกษา: จบมหาวิทยาลัย (${education.universitySchool})`);
     } else if (education.secondarySchool !== null) {
@@ -60,7 +63,7 @@ export class LifeSummaryView {
     } else {
       facts.push("การศึกษา: ไม่ได้เรียน");
     }
-    if (school && education.enrolledUniversity && education.universitySchool === null) {
+    if (education.enrolledUniversity && education.universitySchool === null) {
       facts.push("วางแผนเรียนต่อมหาวิทยาลัย");
     }
 
@@ -72,7 +75,14 @@ export class LifeSummaryView {
       facts.push("อาชีพสุดท้าย: ไม่ได้ทำงาน");
     }
 
-    const btc = character.money.toFixed(8);
+    const family = character.family;
+    facts.push(
+      family.children.length > 0
+        ? `บุตร: ${family.children.map((child) => child.givenName).join(", ")}`
+        : "บุตร: ไม่มี",
+    );
+
+    const btc = formatBtc(character.money, 8);
     const fiat = formatUsd(character.money * this.rateUsd);
     facts.push(
       alive
@@ -85,14 +95,7 @@ export class LifeSummaryView {
   render(): TemplateResult {
     const character = this.state.character;
     const alive = character.alive;
-    const stats = STAT_KEYS.map(
-      (key) => html`
-        <li class="final-stat">
-          ${icon(STAT_ICONS[key], 14)}<span>${STAT_LABELS[key]}</span
-          ><span class="stat-value">${character.stats.get(key)}</span>
-        </li>
-      `,
-    );
+    const age = character.ageAt(this.state.year);
 
     return html`
       <section class="panel summary">
@@ -101,10 +104,34 @@ export class LifeSummaryView {
             ? `สรุปชีวิตของ ${character.name}`
             : `ชีวประวัติของ ${character.name}`}
         </h2>
-        <ul>
+
+        <p class="hero-years">
+          ${character.birthYear} – ${alive ? "ปัจจุบัน" : this.state.year}
+          <span class="muted">· อายุ ${age} ปี</span>
+        </p>
+
+        <ul class="fact-list">
           ${this.facts().map((fact) => html`<li>${fact}</li>`)}
         </ul>
-        <ul class="final-stats">${stats}</ul>
+
+        <div class="stats">
+          ${STAT_KEYS.map((key) => {
+            const value = character.stats.get(key);
+            return html`
+              <div class="stat" data-stat=${key}>
+                <span class="stat-label">${icon(STAT_ICONS[key], 13)}${STAT_LABELS[key]}</span>
+                <span class="stat-bar"
+                  ><span
+                    class="stat-fill ${statTone(value)}"
+                    style="width: ${value}%"
+                  ></span
+                ></span>
+                <span class="stat-value">${value}</span>
+              </div>
+            `;
+          })}
+        </div>
+
         <div class="summary-actions">
           ${this.endState === "heir"
             ? html`<button type="button" class="advance" data-do="open-succession">
@@ -132,7 +159,32 @@ export class LifeSummaryView {
                 ${icon("Copy", 16)}คัดลอกชีวประวัติ
               </button>`}
         </div>
+
+        ${this.logSection()}
       </section>
+    `;
+  }
+
+  /**
+   * The life log folded under the facts. A biography that is five bullets
+   * long undersells a whole life, but the full log is long, so it waits
+   * behind one tap instead of pushing the buttons off screen.
+   */
+  private logSection(): TemplateResult {
+    const history = this.state.history;
+    if (history.length === 0) {
+      return html``;
+    }
+    return html`
+      <h3 class="group-title">${icon("ScrollText", 15)}<span>บันทึกชีวิตตลอดทั้งชีวิต</span></h3>
+      ${this.showFullLog
+        ? timelineList(history)
+        : html`<p class="muted summary-note">
+            ทั้งหมด ${history.length} บรรทัด เปิดดูได้เมื่อพร้อม
+          </p>`}
+      <button type="button" class="ghost" data-do="toggle-summary-log">
+        ${this.showFullLog ? "ซ่อนบันทึกชีวิต" : `ดูบันทึกชีวิต (${history.length})`}
+      </button>
     `;
   }
 }

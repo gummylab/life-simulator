@@ -7,12 +7,12 @@ import { icon } from "./icons";
 const COLLAPSED_LINES = 4;
 
 /**
- * The year feed (Phase 6): every line the current year recorded, read
- * straight from the timeline, so an action's result appears the moment
- * the player taps it and survives a refresh. Entries run oldest first
- * with the newest line at the bottom, right against the action cards.
- * Repeated lines merge as "×n"; the latest four stay visible and the
- * rest wait behind "ดูทั้งปี". An empty year renders nothing at all.
+ * The year feed (ADR 0013): every line the current year recorded, read
+ * straight from the timeline, so an action's result appears the moment the
+ * player taps it and survives a refresh. Entries run oldest first with the
+ * newest line at the bottom, right against the action cards. Repeated
+ * lines merge as "×n"; the latest four stay visible and the rest wait
+ * behind "ดูทั้งปี". An empty year renders nothing at all.
  */
 export class YearFeedView {
   constructor(
@@ -35,10 +35,18 @@ export class YearFeedView {
     // Latest N lines first; the oldest ones only appear once expanded.
     const visible = this.expanded ? groups : groups.slice(-COLLAPSED_LINES);
     const lines = visible.map(
-      (entry) => html`
-        <li>
-          ${entry.text}
-          ${entry.count > 1 ? html`<span class="entry-count">×${entry.count}</span>` : nothing}
+      (entry, index) => html`
+        <li
+          class="feed-line"
+          data-latest=${index === visible.length - 1 ? "true" : nothing}
+        >
+          <span class="feed-dot"></span>
+          <span class="feed-text"
+            >${entry.text}
+            ${entry.count > 1
+              ? html`<span class="entry-count">×${entry.count}</span>`
+              : nothing}</span
+          >
         </li>
       `,
     );
@@ -49,9 +57,7 @@ export class YearFeedView {
         <ul class="feed-list">${lines}</ul>
         ${groups.length > COLLAPSED_LINES
           ? html`<button type="button" class="ghost" data-do="toggle-feed">
-              ${this.expanded
-                ? "ซ่อนรายการเก่า"
-                : `ดูทั้งปี (${groups.length})`}
+              ${this.expanded ? "ซ่อนรายการเก่า" : `ดูทั้งปี (${groups.length})`}
             </button>`
           : nothing}
       </section>

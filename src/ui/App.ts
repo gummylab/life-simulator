@@ -15,6 +15,7 @@ import { FALLBACK_RATE_USD, resolveBtcQuote } from "../infra/CoinGecko";
 import { clearSave, persistSave, readOnboarded, readSave, writeOnboarded } from "../infra/localSave";
 import { BirthSetupView } from "./BirthSetupView";
 import { CareerView } from "./CareerView";
+import { FamilyView } from "./FamilyView";
 import { GameOverView } from "./GameOverView";
 import { HudView } from "./HudView";
 import { LifeSummaryView } from "./LifeSummaryView";
@@ -29,10 +30,10 @@ import { icon, type IconName } from "./icons";
 /** The market can move while a session is open. */
 const RATE_REFRESH_MS = 5 * 60 * 1000;
 
-/** The two thumb-reachable screens behind the bottom nav. */
-type Tab = "act" | "more";
+/** The three thumb-reachable screens behind the bottom nav (ADR 0015). */
+type Tab = "life" | "family" | "more";
 
-/** Full sub-screens opened from the more tab's menu list. */
+/** Full sub-screens opened from a tab's own content. */
 type View =
   | "main"
   | "help"
@@ -47,23 +48,16 @@ type View =
 type ArmedConfirm = "restart" | null;
 
 const TABS: readonly { id: Tab; label: string; iconName: IconName }[] = [
-  { id: "act", label: "กิจกรรม", iconName: "Gamepad2" },
+  { id: "life", label: "ชีวิต", iconName: "House" },
+  { id: "family", label: "ครอบครัว", iconName: "Users" },
   { id: "more", label: "อื่นๆ", iconName: "Menu" },
 ];
-
-/** Phone-bar clock, only visible inside the desktop phone frame. */
-const CLOCK = new Intl.DateTimeFormat("th-TH", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
 
 /**
  * Presentation layer. It only reads GameState, renders whole views from it
  * and forwards clicks to Game. No game rule lives here.
- * Rendering goes through lit-html: the same view classes as before now
- * return templates instead of HTML strings, so escaping and DOM diffing
- * are handled by the library.
+ * Rendering goes through lit-html: every view returns a template instead of
+ * an HTML string, so escaping and DOM diffing are handled by the library.
  */
 export class App {
   private game: Game | null = null;
@@ -75,7 +69,7 @@ export class App {
   private notice = "";
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
   /** Which bottom-nav screen is open. */
-  private tab: Tab = "act";
+  private tab: Tab = "life";
   /** Sub-screen above the tab content; "main" means the tab itself. */
   private view: View = "main";
   /** Armed destructive button: wiped or confirmed on the second tap. */
@@ -83,11 +77,14 @@ export class App {
   private confirmTimer: ReturnType<typeof setTimeout> | null = null;
   /** Whether the jobs panel shows the out-of-reach jobs list. */
   private showAllJobs = false;
-  /** Phase 6 turn-loop state: navbar expansion, feed expansion, panel flags. */
+  /** Disclosure state that only lives in the UI, never in the save. */
   private hudExpanded = false;
   private showFullYearFeed = false;
   private showBlockedActions = false;
   private showCareer = false;
+  private showSummaryLog = false;
+  /** Screen identity of the last render, so a switch can reset scrolling. */
+  private screenKey = "";
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -129,7 +126,7 @@ export class App {
   private renderSetup(): void {
     this.game = null;
     this.price = null;
-    this.tab = "act";
+    this.tab = "life";
     this.view = "main";
     this.showAllJobs = false;
     this.clearArmedConfirm();
@@ -143,21 +140,29 @@ export class App {
     if (!game) {
       return;
     }
+    const key = `${this.tab}|${this.view}`;
+    const changed = key !== this.screenKey;
+    this.screenKey = key;
     render(this.deviceTemplate(this.gameScreen(game)), this.root);
+    if (changed) {
+      // Scroll position belongs to a screen, not to the app: without this
+      // a swipe down the action list would carry over to the family tab.
+      const content = this.root.querySelector<HTMLElement>(".content");
+      if (content) {
+        content.scrollTop = 0;
+      }
+    }
   }
 
   /**
-   * Phone frame around every screen. On desktop the frame and its fake
-   * status bar show; on a real phone the media query hides the bar and
-   * lets the screen fill the display.
+   * Phone frame around every screen. On a real phone the media query hides
+   * the frame and lets the screen fill the display; on desktop it is the
+   * single visual cue that this is a phone game, with no fake status bar
+   * stealing a row of pixels (ADR 0014).
    */
   private deviceTemplate(body: TemplateResult): TemplateResult {
     return html`
       <div class="device">
-        <div class="device-bar" aria-hidden="true">
-          <span class="device-time">${CLOCK.format(new Date())}</span>
-          <span class="device-icons">${icon("Wifi", 14)}${icon("BatteryFull", 15)}</span>
-        </div>
         <div
           class="screen"
           @click=${this.onCommand}
@@ -170,57 +175,15 @@ export class App {
     `;
   }
 
-  /** HUD, toast, the active tab's panel and the bottom dock. */
+  /** The active tab's content, any sub-screen, and the bottom dock. */
   private gameScreen(game: Game): TemplateResult {
     const state = game.gameState;
     const character = state.character;
     const rateUsd = this.price?.rateForYear(state.year) ?? FALLBACK_RATE_USD;
 
-    // Sub-screens fill the display: no HUD, only their own panel plus nav.
-    if (this.view === "help") {
-      return html`${this.toast()}
-        <main class="content">${new OnboardingView().render()}</main>
-        ${this.dock(character.alive, false)}`;
-    }
-    if (this.view === "restart") {
-      const summary = new LifeSummaryView(
-        state,
-        rateUsd,
-        this.armedConfirm === "restart",
-        this.deadEndState(),
-      );
-      return html`${this.toast()}
-        <main class="content">${summary.render()}</main>
-        ${this.dock(character.alive, false)}`;
-    }
-    if (this.view === "succession") {
-      const plan = this.successionPlan();
-      const view = new SuccessionView(
-        plan?.chronicle ?? state.dynasty.chronicle,
-        plan,
-        rateUsd,
-        plan ? plan.rebirthYear - state.year : 0,
-      );
-      return html`${this.toast()}
-        <main class="content">${view.render()}</main>
-        ${this.dock(character.alive, false)}`;
-    }
-    if (this.view === "gameover") {
-      const view = new GameOverView(state, rateUsd, this.armedConfirm === "restart");
-      return html`${this.toast()}
-        <main class="content">${view.render()}</main>
-        ${this.dock(character.alive, false)}`;
-    }
-    if (this.view === "chronicle") {
-      const view = new SuccessionView(state.dynasty.chronicle, null, rateUsd, 0);
-      return html`${this.toast()}
-        <main class="content">${view.render()}</main>
-        ${this.dock(character.alive, false)}`;
-    }
-    if (this.view === "lifelog") {
-      // Full life history lives behind the more tab now (Phase 6).
-      return html`${this.toast()}
-        <main class="content">${new TimelineView(state.history).render()}</main>
+    const sub = this.subScreen(game, rateUsd);
+    if (sub) {
+      return html`<main class="content">${sub}</main>
         ${this.dock(character.alive, false)}`;
     }
 
@@ -231,10 +194,11 @@ export class App {
         rateUsd,
         this.rateNote,
       ).render();
+    } else if (this.tab === "family") {
+      tabContent = new FamilyView(state).render();
     } else if (character.alive) {
-      // Turn-loop order (Phase 6): the year feed, then the decision
-      // menu, then the jobs panel collapsed to one status row unless a
-      // job is actually open to apply for.
+      // Turn-loop order: the year feed, then the decision menu, then the
+      // jobs panel collapsed to one status row unless a job is open.
       const menuEntries = game.availableActions(ACTIONS).map((action) => ({
         action,
         reason: game.actionBlockReason(action),
@@ -245,18 +209,13 @@ export class App {
         ${this.careerTemplate(game, rateUsd)}
       `;
     } else {
-      tabContent = new LifeSummaryView(
-        state,
-        rateUsd,
-        this.armedConfirm === "restart",
-        this.deadEndState(),
-      ).render();
+      tabContent = this.summaryTemplate(game, rateUsd);
     }
 
-    // The navbar belongs to the action tab of a living character only;
+    // The status bar belongs to the life tab of a living character only;
     // death and the other tabs read full height.
     const hud =
-      this.tab === "act" && character.alive
+      this.tab === "life" && character.alive
         ? new HudView(
             character,
             state.year,
@@ -270,10 +229,49 @@ export class App {
         : nothing;
 
     return html`
-      ${hud}${this.toast()}
+      ${hud}
       <main class="content">${tabContent}</main>
-      ${this.dock(character.alive, this.tab !== "more")}
+      ${this.dock(character.alive, this.tab === "life")}
     `;
+  }
+
+  /** The full-screen sub-screen above the tab content, or null on a tab. */
+  private subScreen(game: Game, rateUsd: number): TemplateResult | null {
+    const state = game.gameState;
+    switch (this.view) {
+      case "help":
+        return new OnboardingView().render();
+      case "restart":
+        return this.summaryTemplate(game, rateUsd);
+      case "succession": {
+        const plan = this.successionPlan();
+        return new SuccessionView(
+          plan?.chronicle ?? state.dynasty.chronicle,
+          plan,
+          rateUsd,
+          plan ? plan.rebirthYear - state.year : 0,
+        ).render();
+      }
+      case "gameover":
+        return new GameOverView(state, rateUsd, this.armedConfirm === "restart").render();
+      case "chronicle":
+        return new SuccessionView(state.dynasty.chronicle, null, rateUsd, 0).render();
+      case "lifelog":
+        return new TimelineView(state.history).render();
+      default:
+        return null;
+    }
+  }
+
+  /** Biography or "so far" summary; shared by the life tab and restart. */
+  private summaryTemplate(game: Game, rateUsd: number): TemplateResult {
+    return new LifeSummaryView(
+      game.gameState,
+      rateUsd,
+      this.armedConfirm === "restart",
+      this.deadEndState(),
+      this.showSummaryLog,
+    ).render();
   }
 
   /** Transient note after the year changes, floating above the dock. */
@@ -284,10 +282,10 @@ export class App {
   }
 
   /**
-   * The jobs block on the act tab (Phase 5): the full panel while at
-   * least one job is open to apply for (the actionable moment deserves
-   * the space), otherwise a one-line status row the player can tap to
-   * expand. Hidden entirely until the youngest job's age, as before.
+   * The jobs block on the life tab: the full panel while at least one job
+   * is open to apply for (the actionable moment deserves the space),
+   * otherwise a one-line status row the player can tap to expand. Hidden
+   * entirely until the youngest job's age, as before.
    */
   private careerTemplate(game: Game, rateUsd: number): TemplateResult {
     const content = game.gameContent;
@@ -306,18 +304,26 @@ export class App {
     return this.showCareer || hasOpenJob ? view.render() : view.statusRow();
   }
 
-  /** Year button (main tab screens only) above the always-visible nav. */
+  /** Year button plus the always-visible tab bar, with the toast above them. */
   private dock(alive: boolean, showAdvance: boolean): TemplateResult {
     const game = this.game;
     const timeLeft = game?.gameState.timeLeft ?? 0;
+    const age = game?.age ?? 0;
     return html`
       <footer class="dock">
-        ${alive && showAdvance
-          ? html`<button type="button" class="advance" data-do="advance">
-              ${icon("FastForward", 18)}<span>อายุ +1 ปี</span>
-              ${timeLeft > 0
-                ? html`<span class="advance-hint">ยังใช้เวลาไม่หมด (${timeLeft})</span>`
-                : nothing}
+        ${this.toast()}
+        ${alive && showAdvance && game
+          ? html`<button
+              type="button"
+              class="advance ${timeLeft > 0 ? "advance-early" : ""}"
+              data-do="advance"
+            >
+              <span class="advance-label"
+                >${timeLeft > 0 ? "จบปีก่อนกำหนด" : "จบปีนี้"}</span
+              >
+              <span class="advance-hint">
+                ${timeLeft > 0 ? `เหลือเวลาอีก ${timeLeft} · ` : ""}อายุ ${age} → ${age + 1}
+              </span>
             </button>`
           : nothing}
         <nav class="tabs" aria-label="เมนูหลัก">
@@ -368,27 +374,18 @@ export class App {
       return;
     }
 
-    // More tab sub-screens: how-to, farewell, family record, end state,
-    // and the full life log.
-    if (
-      command === "open-help" ||
-      command === "open-restart" ||
-      command === "open-succession" ||
-      command === "open-gameover" ||
-      command === "open-chronicle" ||
-      command === "open-lifelog"
-    ) {
-      if (command === "open-help") {
-        this.view = "help";
-      } else if (command === "open-restart") {
-        this.view = "restart";
-      } else if (command === "open-succession" || command === "open-chronicle") {
-        this.view = command === "open-succession" ? "succession" : "chronicle";
-      } else if (command === "open-lifelog") {
-        this.view = "lifelog";
-      } else {
-        this.view = "gameover";
-      }
+    // Sub-screens: how-to, farewell, family record, end state, life log.
+    const SUB_SCREENS: Record<string, View> = {
+      "open-help": "help",
+      "open-restart": "restart",
+      "open-succession": "succession",
+      "open-gameover": "gameover",
+      "open-chronicle": "chronicle",
+      "open-lifelog": "lifelog",
+    };
+    const subView = SUB_SCREENS[command];
+    if (subView !== undefined) {
+      this.view = subView;
       this.render();
       return;
     }
@@ -426,8 +423,9 @@ export class App {
       const plan = this.successionPlan();
       if (plan) {
         this.game = continueLife(plan, game.gameState, GAME_CONTENT);
-        this.tab = "act";
+        this.tab = "life";
         this.view = "main";
+        this.showSummaryLog = false;
         this.markCurrentActionsSeen(this.game);
         this.persist();
         // Notice first: the render below picks the toast up.
@@ -439,7 +437,7 @@ export class App {
       return;
     }
 
-    // Save management (Task 3.5): download, restore from file, or wipe.
+    // Save management (Task 3.5): download or restore from file.
     if (command === "export-save") {
       this.exportSave();
       return;
@@ -461,32 +459,13 @@ export class App {
       return;
     }
 
-    // Turn-loop panel toggles (Phase 6): navbar, year feed, blocked cards.
-    if (
-      command === "toggle-hud" ||
-      command === "toggle-feed" ||
-      command === "toggle-blocked" ||
-      command === "toggle-career"
-    ) {
-      if (command === "toggle-hud") {
-        this.hudExpanded = !this.hudExpanded;
-      } else if (command === "toggle-feed") {
-        this.showFullYearFeed = !this.showFullYearFeed;
-      } else if (command === "toggle-blocked") {
-        this.showBlockedActions = !this.showBlockedActions;
-      } else {
-        this.showCareer = !this.showCareer;
-      }
-      this.render();
+    // Disclosure toggles: status bar, year feed, blocked cards, jobs.
+    if (command.startsWith("toggle-")) {
+      this.toggle(command);
       return;
     }
 
     // Career commands come from the jobs panel, not the action list.
-    if (command === "toggle-jobs") {
-      this.showAllJobs = !this.showAllJobs;
-      this.render();
-      return;
-    }
     if (command === "quit-job") {
       game.quitJob();
       // The player is looking at the panel; keep it open after the change.
@@ -538,6 +517,33 @@ export class App {
       }
     }
     this.persist();
+    this.render();
+  }
+
+  /** Every disclosure toggle in one place, so their names stay in step. */
+  private toggle(command: string): void {
+    switch (command) {
+      case "toggle-hud":
+        this.hudExpanded = !this.hudExpanded;
+        break;
+      case "toggle-feed":
+        this.showFullYearFeed = !this.showFullYearFeed;
+        break;
+      case "toggle-blocked":
+        this.showBlockedActions = !this.showBlockedActions;
+        break;
+      case "toggle-career":
+        this.showCareer = !this.showCareer;
+        break;
+      case "toggle-jobs":
+        this.showAllJobs = !this.showAllJobs;
+        break;
+      case "toggle-summary-log":
+        this.showSummaryLog = !this.showSummaryLog;
+        break;
+      default:
+        return;
+    }
     this.render();
   }
 
@@ -681,7 +687,7 @@ export class App {
       imported.state.character.birthYear,
       imported.state.seed,
     );
-    this.tab = "act";
+    this.tab = "life";
     this.view =
       !imported.state.character.alive && this.successionPlan() !== null
         ? "succession"
