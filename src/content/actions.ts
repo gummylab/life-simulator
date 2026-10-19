@@ -30,7 +30,7 @@ export const ACTIONS: readonly PlayerAction[] = [
   },
   {
     id: "rest",
-    label: "พักผ่อนอยู่บ้าน",
+    label: "ดูซีรีส์อยู่บ้าน",
     minAge: 0,
     maxAge: 120,
     timeCost: 20,
@@ -40,7 +40,7 @@ export const ACTIONS: readonly PlayerAction[] = [
   },
   {
     id: "sleep",
-    label: "นอนหลับพักผ่อน",
+    label: "นอนหลับ",
     minAge: 0,
     maxAge: 120,
     timeCost: 40,
@@ -70,7 +70,7 @@ export const ACTIONS: readonly PlayerAction[] = [
   },
   {
     id: "trip",
-    label: "ออกไปเที่ยวพักผ่อน",
+    label: "ไปเที่ยว",
     minAge: 4,
     maxAge: 120,
     timeCost: 40,
@@ -90,7 +90,7 @@ export const ACTIONS: readonly PlayerAction[] = [
   },
   {
     id: "exercise",
-    label: "ออกไปออกกำลังกาย",
+    label: "ออกกำลังกาย",
     minAge: 8,
     maxAge: 95,
     timeCost: 30,
@@ -100,12 +100,12 @@ export const ACTIONS: readonly PlayerAction[] = [
   },
   {
     id: "part-time",
-    label: "รับจ๊อบพิเศษ",
+    label: "รับงานรายชั่วโมง",
     minAge: 14,
     maxAge: 70,
     timeCost: 40,
     energyCost: 35,
-    resultText: "รับจ๊อบพิเศษหลังเลิกเรียน ได้เงินมาพอสมควร",
+    resultText: "รับงานรายชั่วโมงหลังเลิกเรียน ได้เงินมาพอสมควร",
     effects: { money: 0.00012, stats: { happiness: -1, health: -1 } },
   },
   {
@@ -124,6 +124,8 @@ export const ACTIONS: readonly PlayerAction[] = [
     label: "วางแผนเรียนต่อมหาวิทยาลัย",
     minAge: 17,
     maxAge: 17,
+    // Visible from 16, disabled, so the one-year decision window is not a surprise.
+    showFrom: 16,
     timeCost: 10,
     resultText: "วางแผนเรียนต่อมหาวิทยาลัยปีหน้า",
     special: "enroll-university",
@@ -131,7 +133,7 @@ export const ACTIONS: readonly PlayerAction[] = [
   },
   {
     id: "date",
-    label: "ออกไปออกเดท",
+    label: "ไปเดท",
     minAge: 16,
     maxAge: 90,
     timeCost: 25,

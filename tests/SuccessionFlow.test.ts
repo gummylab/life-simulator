@@ -198,20 +198,17 @@ describe("save export and import", () => {
     expect(readSave()).toBe(before);
   });
 
-  test("wiping from the more menu needs the second tap too", () => {
+  test("the more menu has no second wipe path; restart is the only one", () => {
     deadFounderSave(true);
     const root = mount();
     root.querySelector<HTMLButtonElement>("[data-do='back']")?.click();
     root.querySelector<HTMLButtonElement>("[data-do='tab:more']")?.click();
 
-    const deleteButton = () => root.querySelector<HTMLButtonElement>("[data-do='delete-save']");
-    expect(deleteButton()).not.toBeNull();
-    deleteButton()?.click();
-    expect(deleteButton()?.textContent).toContain("แตะอีกครั้งเพื่อลบทุกอย่าง");
-    expect(readSave()).not.toBeNull();
-
-    deleteButton()?.click();
-    expect(root.querySelector("#birth-setup")).not.toBeNull();
-    expect(readSave()).toBeNull();
+    // "ล้างบันทึก" was removed: a wipe now always goes through the
+    // life summary first, guarded by the two-tap restart button.
+    expect(root.querySelector("[data-do='delete-save']")).toBeNull();
+    const restart = root.querySelector<HTMLButtonElement>("[data-do='open-restart']");
+    expect(restart).not.toBeNull();
+    expect(restart?.textContent).toContain("เริ่มใหม่");
   });
 });

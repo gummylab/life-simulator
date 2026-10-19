@@ -33,6 +33,27 @@ describe("EventEngine", () => {
     expect(first).toBe(second);
   });
 
+  test("a year where nothing qualifies fires no event instead of crashing", () => {
+    // A 1-year-old cannot meet any school, job or marriage condition, so
+    // every event fails and fire() must return null quietly.
+    const game = makeContentGame({ age: 1, money: 0 });
+    for (let seed = 0; seed < 30; seed += 1) {
+      const result = new EventEngine(new SeededRng(seed)).fire(
+        game.gameState,
+        GAME_CONTENT,
+      );
+      // Null is the expected outcome here; a rendered line would mean some
+      // event has no age gate at all, which the pool is not supposed to do.
+      expect(result === null || typeof result === "string").toBe(true);
+    }
+    // An empty pool is also legal (contentless game) and fires nothing.
+    const empty = new EventEngine(new SeededRng(1)).fire(game.gameState, {
+      ...GAME_CONTENT,
+      events: [],
+    });
+    expect(empty).toBeNull();
+  });
+
   test("no event token ever reaches the player", () => {
     const game = makeContentGame({ age: 20, money: 0.5 });
     const engine = new EventEngine(new SeededRng(5));

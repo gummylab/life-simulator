@@ -19,23 +19,24 @@ const ROWS: readonly MenuRow[] = [
   },
   {
     command: "open-restart",
-    iconName: "Hourglass",
+    iconName: "RefreshCw",
     label: "เริ่มใหม่",
     note: "ดูสรุปชีวิตตอนนี้ แล้วค่อยเริ่มตระกูลใหม่",
   },
 ];
 
-/** Save management rows (Task 3.5): file round-trip plus a guarded wipe. */
+/** Save management rows (Task 3.5): file round-trip. Wiping the save
+ *  lives only behind "เริ่มใหม่", which shows the life summary first. */
 const SAVE_ROWS: readonly MenuRow[] = [
   {
     command: "export-save",
-    iconName: "Copy",
+    iconName: "Download",
     label: "สำรองบันทึก",
     note: "ดาวน์โหลดไฟล์บันทึกเป็น JSON เก็บไว้นอกเครื่อง",
   },
   {
     command: "import-save",
-    iconName: "Gem",
+    iconName: "Upload",
     label: "นำเข้าบันทึก",
     note: "เลือกไฟล์บันทึกที่เคยสำรองไว้เพื่อเล่นต่อ",
   },
@@ -45,14 +46,10 @@ const SAVE_ROWS: readonly MenuRow[] = [
  * The more tab: a plain menu list in the style of the action cards.
  * Each row opens a full sub-screen instead of expanding inline, so the
  * player always lands on one clear page per choice. The chronicle row
- * only appears once a succession has written something, and wiping the
- * save follows the same two-tap confirm as the restart button.
+ * only appears once a succession has written something.
  */
 export class MoreMenuView {
-  constructor(
-    private readonly chronicleLines: number,
-    private readonly deleteConfirmPending = false,
-  ) {}
+  constructor(private readonly chronicleLines: number) {}
 
   render(): TemplateResult {
     const rows: MenuRow[] = [...ROWS];
@@ -65,14 +62,6 @@ export class MoreMenuView {
       });
     }
     rows.push(...SAVE_ROWS);
-    rows.push({
-      command: "delete-save",
-      iconName: "Unlink",
-      label: "ล้างบันทึก",
-      note: this.deleteConfirmPending
-        ? "แตะอีกครั้งเพื่อลบทุกอย่าง"
-        : "ลบบันทึกและทุกรุ่นของตระกูลบนเครื่องนี้",
-    });
 
     const rendered = rows.map(
       (row) => html`

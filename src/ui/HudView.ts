@@ -42,8 +42,9 @@ export class HudView {
       `,
     );
 
-    const btc = character.money.toFixed(8);
-    // Dollars lead because eight decimal places of BTC read poorly at a glance.
+    const btc = character.money.toFixed(4);
+    // Dollars lead because even four decimals of BTC read poorly at a
+    // glance; the full eight decimals live in the life summary.
     const fiat = formatUsd(character.money * this.rateUsd);
     const rate = formatUsd(this.rateUsd);
 

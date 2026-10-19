@@ -2,17 +2,27 @@ import { html, nothing, type TemplateResult } from "lit";
 import type { Game } from "../core/Game";
 import type { JobBlockReason } from "../core/systems/CareerSystem";
 import type { GameContent } from "../core/model/GameContent";
+import type { JobSpec } from "../core/model/JobSpec";
 import { PROMOTION_RAISE } from "../core/config";
 import { icon } from "./icons";
+import { STAT_LABELS } from "./stats";
 import { formatUsd } from "./format";
 
-/** Thai messages for why a job cannot be taken right now. */
-const JOB_REASON_LABELS: Record<JobBlockReason, string> = {
-  age: "ยังไม่ถึงวัยทำงาน",
-  education: "การศึกษาไม่ถึง",
-  stat: "ค่าสถานะไม่พอ",
-  already: "ทำอยู่แล้ว",
-};
+/** Why a job cannot be taken, spelled out with the missing piece named. */
+function jobReasonLabel(reason: JobBlockReason, job: JobSpec): string {
+  switch (reason) {
+    case "age":
+      return `ต้องอายุ ${job.minAge} ปี`;
+    case "education":
+      return "การศึกษาไม่ถึง";
+    case "stat":
+      return job.statRequirement
+        ? `${STAT_LABELS[job.statRequirement.stat]}ไม่พอ (${job.statRequirement.min})`
+        : "ค่าสถานะไม่พอ";
+    case "already":
+      return "ทำอยู่แล้ว";
+  }
+}
 
 /** Salary chip: BTC first, USD as the readable check figure. */
 function salaryChip(salary: number, rateUsd: number): TemplateResult {
@@ -22,14 +32,16 @@ function salaryChip(salary: number, rateUsd: number): TemplateResult {
 }
 
 /**
- * The career panel: current job at the top, then every catalog job as an
- * apply card. Blocked jobs stay visible with the reason, the same way the
- * action menu teaches its rules.
+ * The career panel: current job at the top, then the catalog jobs the
+ * character can actually apply for. Jobs that are out of reach collapse
+ * behind a toggle, so the panel stays short while the rules stay visible
+ * on demand.
  */
 export class CareerView {
   constructor(
     private readonly game: Game,
     private readonly rateUsd = 0,
+    private readonly showAllJobs = false,
   ) {}
 
   render(): TemplateResult {
@@ -44,35 +56,54 @@ export class CareerView {
       return html``;
     }
 
+    // The held job already has its own card on top; skip it in the list.
+    const entries = content.jobs
+      .filter((job) => job.id !== character.job.id)
+      .map((job) => ({ job, reason: this.game.jobBlockReason(job) }));
+    const open = entries.filter((entry) => entry.reason === null);
+    const locked = entries.filter((entry) => entry.reason !== null);
+
     return html`
       <section class="panel">
         <h2>${icon("Briefcase", 18)}การงาน</h2>
         ${this.currentJob(content)}
         <div class="actions">
-          ${content.jobs.map((job) => {
-            const reason = this.game.jobBlockReason(job);
-            return html`
-              <button
-                type="button"
-                class="action"
-                data-do=${`apply:${job.id}`}
-                ?disabled=${reason !== null}
-              >
-                <span class="action-main">
-                  <span class="action-label">${job.label}</span>
-                  <span class="action-cost">
-                    ${salaryChip(job.salary, this.rateUsd)}
-                    <span class="chip">${job.timeCost} เวลา</span>
-                  </span>
-                  ${reason !== null
-                    ? html`<span class="action-reason">${JOB_REASON_LABELS[reason]}</span>`
-                    : nothing}
-                </span>
-              </button>
-            `;
-          })}
+          ${open.map(({ job }) => this.jobCard(job, null))}
+          ${this.showAllJobs
+            ? locked.map(({ job, reason }) => this.jobCard(job, reason))
+            : nothing}
         </div>
+        ${locked.length > 0
+          ? html`<button type="button" class="ghost" data-do="toggle-jobs">
+              ${this.showAllJobs
+                ? "ซ่อนงานที่ยังเข้าไม่ถึง"
+                : `ดูงานที่ยังเข้าไม่ถึง (${locked.length})`}
+            </button>`
+          : nothing}
       </section>
+    `;
+  }
+
+  /** One apply card; the reason span appears only while blocked. */
+  private jobCard(job: JobSpec, reason: JobBlockReason | null): TemplateResult {
+    return html`
+      <button
+        type="button"
+        class="action"
+        data-do=${`apply:${job.id}`}
+        ?disabled=${reason !== null}
+      >
+        <span class="action-main">
+          <span class="action-label">${job.label}</span>
+          <span class="action-cost">
+            ${salaryChip(job.salary, this.rateUsd)}
+            <span class="chip">${job.timeCost} เวลา</span>
+          </span>
+          ${reason !== null
+            ? html`<span class="action-reason">${jobReasonLabel(reason, job)}</span>`
+            : nothing}
+        </span>
+      </button>
     `;
   }
 

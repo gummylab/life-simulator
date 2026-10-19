@@ -82,6 +82,30 @@ describe("Game", () => {
     expect(game.availableActions([study])).toHaveLength(1);
   });
 
+  test("showFrom reveals an action early, still blocked until minAge", () => {
+    const plan: PlayerAction = {
+      id: "plan",
+      label: "วางแผนล่วงหน้า",
+      minAge: 7,
+      maxAge: 9,
+      showFrom: 5,
+      resultText: "วางแผน",
+      timeCost: 5,
+      effects: {},
+    };
+    const game = makeGame();
+    for (let i = 0; i < 5; i += 1) {
+      game.advanceYear();
+    }
+    // Visible one year early, but the engine still refuses to run it.
+    expect(game.availableActions([plan])).toHaveLength(1);
+    expect(game.actionBlockReason(plan)).toBe("age");
+    for (let i = 0; i < 2; i += 1) {
+      game.advanceYear();
+    }
+    expect(game.actionBlockReason(plan)).toBeNull();
+  });
+
   test("a paid action is refused when money cannot cover its cost", () => {
     const game = makeGame();
     for (let i = 0; i < 7; i += 1) {

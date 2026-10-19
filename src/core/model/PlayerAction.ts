@@ -20,6 +20,12 @@ export interface PlayerAction {
   readonly label: string;
   readonly minAge: number;
   readonly maxAge: number;
+  /**
+   * Age the action first appears in the menu, when it should be visible
+   * before it can run. Defaults to minAge. A visible-but-blocked action
+   * lets the player see an upcoming decision early (e.g. university at 16).
+   */
+  readonly showFrom?: number;
   /** Thai line added to the timeline after the action runs. */
   readonly resultText: string;
   /** Time units the action eats from this year's budget. */

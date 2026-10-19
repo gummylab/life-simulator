@@ -104,10 +104,16 @@ export class Game {
     return timeBudgetForAge(this.age);
   }
 
-  /** Actions the current age is allowed to take. */
+  /**
+   * Actions the current age may see in the menu. `showFrom` widens the
+   * window so a future decision can show up disabled before its minAge;
+   * actionBlockReason still guards the actual run by minAge.
+   */
   availableActions(actions: readonly PlayerAction[]): readonly PlayerAction[] {
     const age = this.age;
-    return actions.filter((action) => age >= action.minAge && age <= action.maxAge);
+    return actions.filter(
+      (action) => age >= (action.showFrom ?? action.minAge) && age <= action.maxAge,
+    );
   }
 
   /** Why an action is blocked right now, or null when it can run. */

@@ -96,4 +96,17 @@ describe("LifeSummaryView biography", () => {
     expect(text).toContain("วิศวกร");
     expect(text).toMatch(/^- /m); // one fact per line, dash-prefixed
   });
+
+  test("an absurdly rich life still renders readable numbers", () => {
+    // 100,000 BTC at $100k each: the USD figure hits nine digits and the
+    // BTC figure keeps eight decimals. Neither may break the template.
+    const state = deadState();
+    state.character.money = 100_000;
+    const root = mount(new LifeSummaryView(state, 100_000));
+    const text = root.textContent ?? "";
+    expect(text).toContain("100000.00000000 BTC");
+    expect(text).toContain("$10,000,000,000");
+    // No scientific notation may leak into the UI.
+    expect(text).not.toContain("e+");
+  });
 });

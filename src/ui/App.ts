@@ -35,7 +35,7 @@ type Tab = "act" | "log" | "more";
 type View = "main" | "help" | "restart" | "succession" | "gameover" | "chronicle";
 
 /** Which destructive button is armed for its second confirming tap. */
-type ArmedConfirm = "restart" | "delete-save" | null;
+type ArmedConfirm = "restart" | null;
 
 const TABS: readonly { id: Tab; label: string; iconName: IconName }[] = [
   { id: "act", label: "กิจกรรม", iconName: "Gamepad2" },
@@ -73,6 +73,8 @@ export class App {
   /** Armed destructive button: wiped or confirmed on the second tap. */
   private armedConfirm: ArmedConfirm = null;
   private confirmTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Whether the jobs panel shows the out-of-reach jobs list. */
+  private showAllJobs = false;
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -105,6 +107,7 @@ export class App {
     this.price = null;
     this.tab = "act";
     this.view = "main";
+    this.showAllJobs = false;
     this.clearArmedConfirm();
     const body = html`<main class="content">${new BirthSetupView().render()}</main>`;
     render(this.deviceTemplate(body), this.root);
@@ -195,19 +198,17 @@ export class App {
     if (this.tab === "log") {
       tabContent = new TimelineView(state.history).render();
     } else if (this.tab === "more") {
-      tabContent = new MoreMenuView(
-        state.dynasty.chronicle.length,
-        this.armedConfirm === "delete-save",
-      ).render();
+      tabContent = new MoreMenuView(state.dynasty.chronicle.length).render();
     } else if (character.alive) {
       // Education line + jobs panel sit above the plain activity menu.
       tabContent = html`
-        ${new CareerView(game).render()}
+        ${new CareerView(game, rateUsd, this.showAllJobs).render()}
         ${new MenuView(
           game.availableActions(ACTIONS).map((action) => ({
             action,
             reason: game.actionBlockReason(action),
           })),
+          rateUsd,
         ).render()}
       `;
     } else {
@@ -375,8 +376,8 @@ export class App {
       return;
     }
 
-    // Wiping the save needs a second tap, wherever the button lives.
-    if (command === "restart" || command === "delete-save") {
+    // Wiping the save needs a second tap; "เริ่มใหม่" is the single path.
+    if (command === "restart") {
       if (this.armedConfirm !== command) {
         this.armConfirm(command);
         return;
@@ -388,6 +389,11 @@ export class App {
     }
 
     // Career commands come from the jobs panel, not the action list.
+    if (command === "toggle-jobs") {
+      this.showAllJobs = !this.showAllJobs;
+      this.render();
+      return;
+    }
     if (command === "quit-job") {
       game.quitJob();
       this.persist();
