@@ -40,6 +40,8 @@ export interface GameStateSpec {
   readonly timeline?: readonly TimelineEntry[];
   /** Restored dynasty records; a fresh founder starts at generation 1. */
   readonly dynasty?: DynastyState;
+  /** Action ids already offered this life; older files default to empty. */
+  readonly seenActions?: readonly string[];
 }
 
 /**
@@ -57,7 +59,11 @@ export class GameState {
   timeLeft: number;
   committedTime: number;
   dynasty: DynastyState;
+  /** Action ids the player has already been offered this life (Phase 5). */
+  seenActions: string[];
   private readonly entries: TimelineEntry[] = [];
+  /** Lines recorded since the year opened; drained by advanceYear into news. */
+  private readonly newsLines: string[] = [];
 
   constructor(spec: GameStateSpec) {
     this.year = spec.year;
@@ -67,6 +73,7 @@ export class GameState {
     this.founderFamilyName = spec.founderFamilyName;
     this.timeLeft = spec.timeLeft;
     this.committedTime = spec.committedTime ?? 0;
+    this.seenActions = [...(spec.seenActions ?? [])];
     this.dynasty = {
       generation: spec.dynasty?.generation ?? 1,
       tree: [...(spec.dynasty?.tree ?? [])],
@@ -82,6 +89,23 @@ export class GameState {
       age: this.character.ageAt(this.year),
       text,
     });
+    this.newsLines.push(text);
+  }
+
+  /**
+   * Drops everything recorded so far. advanceYear calls this right after
+   * the year ticks, so only the year-start systems (events, allowance,
+   * promotions, graduations) end up in the returned news.
+   */
+  clearNews(): void {
+    this.newsLines.length = 0;
+  }
+
+  /** The news of the year that just resolved, oldest first. */
+  drainNews(): string[] {
+    const out = [...this.newsLines];
+    this.newsLines.length = 0;
+    return out;
   }
 
   /** Newest first, ready for the timeline view to render. */

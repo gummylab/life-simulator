@@ -90,31 +90,12 @@ body {
   scrollbar-color: var(--line) transparent;
 }
 
-/* Top card: identity, money, vitals and the four life stats */
+/* Top card (Phase 5): identity chips, money, vitals, stat strip */
 .hud {
   flex: none;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
-  padding: 12px 14px;
-}
-
-.hud-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.hud-title {
-  font-weight: 500;
-  letter-spacing: 0.03em;
-  font-size: 0.85rem;
-}
-
-.hud-by {
-  color: var(--muted);
-  font-weight: 300;
-  font-size: 0.75rem;
+  padding: 10px 14px 12px;
 }
 
 .hud-line {
@@ -122,7 +103,6 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
 }
 
 .hud-name {
@@ -191,13 +171,6 @@ body {
   color: var(--muted);
 }
 
-.stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 14px;
-  margin-top: 10px;
-}
-
 .stat {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -226,15 +199,60 @@ body {
   height: 100%;
   border-radius: 999px;
   background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+/* Low and amber thresholds so a sagging stat reads at a glance. */
+.stat-fill.low {
+  background: var(--danger);
+}
+
+.stat-fill.mid {
+  background: var(--warn);
 }
 
 .stat-value {
   font-variant-numeric: tabular-nums;
 }
 
-.hud-rate {
+/* One-line stat strip: pills with values, tap to expand the bars. */
+.stat-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-pill .icon {
+  color: var(--accent);
+}
+
+.stat-strip > .icon {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
   margin-top: 8px;
-  font-size: 0.72rem;
 }
 
 /* Panels */
@@ -277,6 +295,29 @@ body {
 
 .chip-gain {
   color: var(--accent);
+}
+
+/* "ใหม่" badge on the first year a card appears */
+.chip-new {
+  color: var(--accent);
+  border-color: var(--accent);
+  padding: 0 7px;
+  font-size: 0.66rem;
+}
+
+/* Year report card: what the ending year produced */
+.news {
+  border-left: 3px solid var(--accent);
+}
+
+.news-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.88rem;
+}
+
+.news-list li {
+  margin: 4px 0;
 }
 
 /* Action cards */
@@ -384,6 +425,13 @@ body {
   color: var(--muted);
 }
 
+/* BTC rate note, moved here from the HUD (Phase 5) */
+.menu-rate {
+  margin: 12px 0 0;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
 /* Bottom dock: year button above the three-tab nav */
 .dock {
   flex: none;
@@ -418,6 +466,13 @@ body {
   color: #2a1c02;
 }
 
+/* "Still have time left" hint under the year button */
+.advance-hint {
+  font-size: 0.72rem;
+  font-weight: 300;
+  opacity: 0.75;
+}
+
 /* Secondary button used under the primary one on summary screens */
 .ghost {
   display: flex;
@@ -440,6 +495,34 @@ body {
   flex-direction: column;
   gap: 10px;
   margin-top: 14px;
+}
+
+/* Collapsed jobs row on the act tab: one tap expands the full panel */
+.status-row {
+  padding: 10px;
+}
+
+.row-button {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 6px;
+  border: none;
+  background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row-button .muted {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
 }
 
 .tabs {

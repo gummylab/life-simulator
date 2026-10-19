@@ -21,6 +21,11 @@ export interface YearResult {
   readonly age: number;
   readonly died: boolean;
   readonly cause: DeathCause | null;
+  /**
+   * What the year-start systems recorded: random events, allowance,
+   * promotions, graduations. The UI shows it as the year report card.
+   */
+  readonly news: readonly string[];
 }
 
 /** Why an action cannot run right now. Feeds the menu's block messages. */
@@ -114,6 +119,26 @@ export class Game {
     return actions.filter(
       (action) => age >= (action.showFrom ?? action.minAge) && age <= action.maxAge,
     );
+  }
+
+  /**
+   * Remembers the action ids the player has been offered this life. The
+   * menu shows the "ใหม่" badge only while an id is missing here, so a
+   * milestone card is highlighted for exactly its first visible year.
+   */
+  markActionsSeen(ids: readonly string[]): void {
+    const known = new Set(this.state.seenActions);
+    for (const id of ids) {
+      if (!known.has(id)) {
+        known.add(id);
+        this.state.seenActions.push(id);
+      }
+    }
+  }
+
+  /** Seen action ids as a set, for the menu's badge check. */
+  get seenActions(): ReadonlySet<string> {
+    return new Set(this.state.seenActions);
   }
 
   /** Why an action is blocked right now, or null when it can run. */
@@ -252,6 +277,8 @@ export class Game {
   /** Moves the calendar forward one year and resolves the year's systems. */
   advanceYear(): YearResult {
     this.state.year += 1;
+    // Only the year-start systems below land in the news report.
+    this.state.clearNews();
     const age = this.age;
     const character = this.state.character;
 
@@ -284,7 +311,7 @@ export class Game {
     }
 
     this.syncRngState();
-    return { age, died: outcome.died, cause: outcome.cause };
+    return { age, died: outcome.died, cause: outcome.cause, news: this.state.drainNews() };
   }
 
   /** Keeps the save file in step with the generator after every random draw. */

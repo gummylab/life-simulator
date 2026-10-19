@@ -1,5 +1,7 @@
 import { html, type TemplateResult } from "lit";
+import { WORLD } from "../content/world";
 import { icon, type IconName } from "./icons";
+import { formatUsd } from "./format";
 
 /** One destination on the more tab: a row that opens a full sub-screen. */
 interface MenuRow {
@@ -49,7 +51,12 @@ const SAVE_ROWS: readonly MenuRow[] = [
  * only appears once a succession has written something.
  */
 export class MoreMenuView {
-  constructor(private readonly chronicleLines: number) {}
+  constructor(
+    private readonly chronicleLines: number,
+    /** BTC rate plus its source note; moved here from the HUD in Phase 5. */
+    private readonly rateUsd = 0,
+    private readonly rateNote = "",
+  ) {}
 
   render(): TemplateResult {
     const rows: MenuRow[] = [...ROWS];
@@ -82,6 +89,9 @@ export class MoreMenuView {
         <h2>${icon("Menu", 18)}อื่นๆ</h2>
         <div class="menu">${rendered}</div>
         <input type="file" id="save-file-input" accept="application/json,.json" hidden />
+        <p class="muted menu-rate">
+          1 ${WORLD.currency} ≈ ${formatUsd(this.rateUsd)} · ${this.rateNote}
+        </p>
       </section>
     `;
   }

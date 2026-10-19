@@ -56,6 +56,8 @@ function deadFounderSave(withChild: boolean): void {
 
 beforeEach(() => {
   domWindow.localStorage.clear();
+  // Skip the first-run welcome screen; these tests drive lives directly.
+  domWindow.localStorage.setItem("life-simulator.onboarded", "1");
   document.body.innerHTML = "";
 });
 

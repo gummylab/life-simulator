@@ -46,52 +46,82 @@ function costChips(action: PlayerAction, rateUsd: number): TemplateResult[] {
 }
 
 /**
- * Action menu for the current year. Blocked actions stay visible but
- * disabled, each with the reason the engine reported, so the player
- * learns why without guessing. Runnable actions sort to the top so the
- * next tap is always the first card. The button that ends the year lives
- * in the bottom dock instead (App).
+ * Action menu for the current year (Phase 5 layout). Runnable cards come
+ * first so the next tap is always the top card. Age-blocked cards stay
+ * visible below them: they are the showFrom promise that lets the player
+ * see a coming decision early. Every other block (time, tired, money,
+ * relationship gates) collapses behind a disclosure, mirroring the jobs
+ * panel. A "ใหม่" badge marks cards the player has not been offered
+ * before; it clears once the year ends and seenActions catches up.
  */
 export class MenuView {
   constructor(
     private readonly entries: readonly MenuEntry[],
     private readonly rateUsd = 0,
+    private readonly seen: ReadonlySet<string> = new Set(),
+    private readonly showBlocked = false,
   ) {}
 
   render(): TemplateResult {
-    // Runnable first, blocked below; stable within each group so the
-    // menu does not reshuffle unrelated cards when one becomes blocked.
-    const sorted = [...this.entries].sort(
-      (a, b) => Number(a.reason !== null) - Number(b.reason !== null),
+    // Stable within each group so the menu never reshuffles unrelated
+    // cards when one becomes blocked.
+    const runnable = this.entries.filter(({ reason }) => reason === null);
+    const ageBlocked = this.entries.filter(({ reason }) => reason === "age");
+    const otherBlocked = this.entries.filter(
+      ({ reason }) => reason !== null && reason !== "age",
     );
-    const buttons =
-      sorted.length === 0
-        ? html`<p class="muted">ยังไม่มีกิจกรรมที่ทำได้ในวัยนี้</p>`
-        : sorted.map(
-            ({ action, reason }) => html`
-              <button
-                type="button"
-                class="action"
-                data-do=${action.id}
-                ?disabled=${reason !== null}
-              >
-                <span class="action-icon">${actionIcon(action.id)}</span>
-                <span class="action-main">
-                  <span class="action-label">${action.label}</span>
-                  <span class="action-cost">${costChips(action, this.rateUsd)}</span>
-                </span>
-                ${reason !== null
-                  ? html`<span class="action-reason">${REASON_LABELS[reason]}</span>`
-                  : nothing}
-              </button>
-            `,
-          );
+
+    if (this.entries.length === 0) {
+      return html`
+        <section class="panel">
+          <h2>${icon("ListChecks", 18)}สิ่งที่ทำได้ในปีนี้</h2>
+          <p class="muted">ยังไม่มีกิจกรรมที่ทำได้ในวัยนี้</p>
+        </section>
+      `;
+    }
 
     return html`
       <section class="panel">
         <h2>${icon("ListChecks", 18)}สิ่งที่ทำได้ในปีนี้</h2>
-        <div class="actions">${buttons}</div>
+        <div class="actions">
+          ${runnable.map(({ action }) => this.actionCard(action, null))}
+          ${ageBlocked.map(({ action }) => this.actionCard(action, "age"))}
+          ${this.showBlocked
+            ? otherBlocked.map(({ action, reason }) => this.actionCard(action, reason))
+            : nothing}
+        </div>
+        ${otherBlocked.length > 0
+          ? html`<button type="button" class="ghost" data-do="toggle-blocked">
+              ${this.showBlocked
+                ? "ซ่อนรายการที่ยังทำไม่ได้"
+                : `ยังทำไม่ได้ (${otherBlocked.length})`}
+            </button>`
+          : nothing}
       </section>
+    `;
+  }
+
+  /** One action card; the reason span appears only while blocked. */
+  private actionCard(action: PlayerAction, reason: ActionBlockReason | null): TemplateResult {
+    return html`
+      <button
+        type="button"
+        class="action"
+        data-do=${action.id}
+        ?disabled=${reason !== null}
+      >
+        <span class="action-icon">${actionIcon(action.id)}</span>
+        <span class="action-main">
+          <span class="action-label"
+            >${action.label}
+            ${!this.seen.has(action.id) ? html`<span class="chip chip-new">ใหม่</span>` : nothing}
+          </span>
+          <span class="action-cost">${costChips(action, this.rateUsd)}</span>
+        </span>
+        ${reason !== null
+          ? html`<span class="action-reason">${REASON_LABELS[reason]}</span>`
+          : nothing}
+      </button>
     `;
   }
 }

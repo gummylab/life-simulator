@@ -80,6 +80,33 @@ export class CareerView {
                 : `ดูงานที่ยังเข้าไม่ถึง (${locked.length})`}
             </button>`
           : nothing}
+        ${open.length === 0
+          ? html`<button type="button" class="ghost" data-do="toggle-career">ซ่อน</button>`
+          : nothing}
+      </section>
+    `;
+  }
+
+  /**
+   * The collapsed row the act tab shows when no job is open to apply for
+   * (Phase 5): one tap expands the full panel. While a job is open the
+   * panel expands itself, so this row only appears once the list would
+   * be all-locked reading anyway.
+   */
+  statusRow(): TemplateResult {
+    const character = this.game.character;
+    const content = this.game.gameContent;
+    const spec = content?.jobs.find((job) => job.id === character.job.id) ?? null;
+    const label = spec
+      ? `${spec.label} ระดับ ${character.job.level}`
+      : "ยังไม่มีงานทำ";
+    return html`
+      <section class="panel status-row">
+        <button type="button" class="row-button" data-do="toggle-career">
+          <span class="action-icon">${icon("Briefcase", 16)}</span>
+          <span class="action-label">${label}</span>
+          <span class="muted">ดูงาน${icon("ChevronRight", 14)}</span>
+        </button>
       </section>
     `;
   }

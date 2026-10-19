@@ -12,7 +12,7 @@ import { GAME_CONTENT } from "../content/gameContent";
 import { randomNameFor } from "../content/world";
 import { DEATH_CAUSE_LABELS } from "../content/deathCauses";
 import { FALLBACK_RATE_USD, resolveBtcQuote } from "../infra/CoinGecko";
-import { clearSave, persistSave, readSave } from "../infra/localSave";
+import { clearSave, persistSave, readOnboarded, readSave, writeOnboarded } from "../infra/localSave";
 import { BirthSetupView } from "./BirthSetupView";
 import { CareerView } from "./CareerView";
 import { GameOverView } from "./GameOverView";
@@ -23,6 +23,7 @@ import { MoreMenuView } from "./MoreMenuView";
 import { OnboardingView } from "./OnboardingView";
 import { SuccessionView } from "./SuccessionView";
 import { TimelineView } from "./TimelineView";
+import { YearReportView } from "./YearReportView";
 import { icon, type IconName } from "./icons";
 
 /** The market can move while a session is open. */
@@ -32,7 +33,7 @@ const RATE_REFRESH_MS = 5 * 60 * 1000;
 type Tab = "act" | "log" | "more";
 
 /** Full sub-screens opened from the more tab's menu list. */
-type View = "main" | "help" | "restart" | "succession" | "gameover" | "chronicle";
+type View = "main" | "help" | "restart" | "succession" | "gameover" | "chronicle" | "welcome";
 
 /** Which destructive button is armed for its second confirming tap. */
 type ArmedConfirm = "restart" | null;
@@ -75,6 +76,11 @@ export class App {
   private confirmTimer: ReturnType<typeof setTimeout> | null = null;
   /** Whether the jobs panel shows the out-of-reach jobs list. */
   private showAllJobs = false;
+  /** Phase 5 turn-loop state: the year's news, expanded panels and flags. */
+  private lastNews: readonly string[] = [];
+  private statsExpanded = false;
+  private showBlockedActions = false;
+  private showCareer = false;
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -88,12 +94,23 @@ export class App {
         resumed.state.character.birthYear,
         resumed.state.seed,
       );
+      // A refresh mid-year should not re-badge the cards already on screen.
+      this.markCurrentActionsSeen(this.game);
       // A refresh mid-succession must land back on the succession screen:
       // the plan is derived from the frozen save, so it always matches.
       if (!resumed.state.character.alive && this.successionPlan() !== null) {
         this.view = "succession";
       }
       this.render();
+    } else if (!readOnboarded()) {
+      // First visit, no save yet: teach before the birth setup appears.
+      this.view = "welcome";
+      render(
+        this.deviceTemplate(html`<main class="content">
+          ${new OnboardingView("welcome").render()}
+        </main>`),
+        this.root,
+      );
     } else {
       this.renderSetup();
     }
@@ -198,18 +215,23 @@ export class App {
     if (this.tab === "log") {
       tabContent = new TimelineView(state.history).render();
     } else if (this.tab === "more") {
-      tabContent = new MoreMenuView(state.dynasty.chronicle.length).render();
+      tabContent = new MoreMenuView(
+        state.dynasty.chronicle.length,
+        rateUsd,
+        this.rateNote,
+      ).render();
     } else if (character.alive) {
-      // Education line + jobs panel sit above the plain activity menu.
+      // Turn-loop order (ADR 0012): year report, then the decision menu,
+      // then the jobs panel collapsed to one status row unless a job is
+      // actually open to apply for.
+      const menuEntries = game.availableActions(ACTIONS).map((action) => ({
+        action,
+        reason: game.actionBlockReason(action),
+      }));
       tabContent = html`
-        ${new CareerView(game, rateUsd, this.showAllJobs).render()}
-        ${new MenuView(
-          game.availableActions(ACTIONS).map((action) => ({
-            action,
-            reason: game.actionBlockReason(action),
-          })),
-          rateUsd,
-        ).render()}
+        ${new YearReportView(state.year, this.lastNews).render()}
+        ${new MenuView(menuEntries, rateUsd, game.seenActions, this.showBlockedActions).render()}
+        ${this.careerTemplate(game, rateUsd)}
       `;
     } else {
       tabContent = new LifeSummaryView(
@@ -230,8 +252,8 @@ export class App {
             state.timeLeft,
             game.timeBudget,
             rateUsd,
-            this.rateNote,
             game.stageLabel(),
+            this.statsExpanded,
           ).render()
         : nothing;
 
@@ -249,13 +271,41 @@ export class App {
       : nothing;
   }
 
+  /**
+   * The jobs block on the act tab (Phase 5): the full panel while at
+   * least one job is open to apply for (the actionable moment deserves
+   * the space), otherwise a one-line status row the player can tap to
+   * expand. Hidden entirely until the youngest job's age, as before.
+   */
+  private careerTemplate(game: Game, rateUsd: number): TemplateResult {
+    const content = game.gameContent;
+    const character = game.character;
+    if (!content || content.jobs.length === 0) {
+      return html``;
+    }
+    const youngest = Math.min(...content.jobs.map((job) => job.minAge));
+    if (character.job.id === null && game.age < youngest) {
+      return html``;
+    }
+    const hasOpenJob = content.jobs.some(
+      (job) => job.id !== character.job.id && game.jobBlockReason(job) === null,
+    );
+    const view = new CareerView(game, rateUsd, this.showAllJobs);
+    return this.showCareer || hasOpenJob ? view.render() : view.statusRow();
+  }
+
   /** Year button (main tab screens only) above the always-visible nav. */
   private dock(alive: boolean, showAdvance: boolean): TemplateResult {
+    const game = this.game;
+    const timeLeft = game?.gameState.timeLeft ?? 0;
     return html`
       <footer class="dock">
         ${alive && showAdvance
           ? html`<button type="button" class="advance" data-do="advance">
               ${icon("FastForward", 18)}<span>อายุ +1 ปี</span>
+              ${timeLeft > 0
+                ? html`<span class="advance-hint">ยังใช้เวลาไม่หมด (${timeLeft})</span>`
+                : nothing}
             </button>`
           : nothing}
         <nav class="tabs" aria-label="เมนูหลัก">
@@ -338,6 +388,12 @@ export class App {
       this.fillRandomNames();
       return;
     }
+    // Welcome screen's start button (first visit only, no game yet).
+    if (command === "welcome-done") {
+      writeOnboarded();
+      this.renderSetup();
+      return;
+    }
 
     const game = this.game;
     if (!game) {
@@ -356,6 +412,7 @@ export class App {
         this.game = continueLife(plan, game.gameState, GAME_CONTENT);
         this.tab = "act";
         this.view = "main";
+        this.markCurrentActionsSeen(this.game);
         this.persist();
         // Notice first: the render below picks the toast up.
         this.showNotice(
@@ -388,6 +445,23 @@ export class App {
       return;
     }
 
+    // Turn-loop panel toggles (Phase 5): stat strip, blocked cards, jobs row.
+    if (
+      command === "toggle-stats" ||
+      command === "toggle-blocked" ||
+      command === "toggle-career"
+    ) {
+      if (command === "toggle-stats") {
+        this.statsExpanded = !this.statsExpanded;
+      } else if (command === "toggle-blocked") {
+        this.showBlockedActions = !this.showBlockedActions;
+      } else {
+        this.showCareer = !this.showCareer;
+      }
+      this.render();
+      return;
+    }
+
     // Career commands come from the jobs panel, not the action list.
     if (command === "toggle-jobs") {
       this.showAllJobs = !this.showAllJobs;
@@ -396,6 +470,8 @@ export class App {
     }
     if (command === "quit-job") {
       game.quitJob();
+      // The player is looking at the panel; keep it open after the change.
+      this.showCareer = true;
       this.persist();
       this.render();
       return;
@@ -405,29 +481,44 @@ export class App {
       if (spec) {
         game.applyForJob(spec);
       }
+      // The player is looking at the panel; keep it open after the change.
+      this.showCareer = true;
       this.persist();
       this.render();
       return;
     }
 
     const yearBefore = game.gameState.year;
+    // Snapshot what the ending year offered so its cards stop being "ใหม่".
+    const visibleBefore = game.availableActions(ACTIONS).map((action) => action.id);
 
+    let news: readonly string[] = [];
     if (command === "advance") {
-      this.recordDeath(game.advanceYear());
+      const result = game.advanceYear();
+      news = result.news;
+      this.recordDeath(result);
     } else {
       const action = ACTIONS.find((candidate) => candidate.id === command);
       if (action) {
         const outcome = game.performAction(action);
         // An action can end the year when it empties the time budget.
         if (outcome.accepted && outcome.yearEnded !== null) {
+          news = outcome.yearEnded.news;
           this.recordDeath(outcome.yearEnded);
         }
       }
     }
 
-    // A silent year jump feels like a glitch, so announce it briefly.
-    if (game.gameState.year !== yearBefore && game.character.alive) {
-      this.showNotice(`ปี ${yearBefore} จบแล้ว เข้าสู่ปี ${game.gameState.year} ที่อายุ ${game.age} ปี`);
+    if (game.gameState.year !== yearBefore) {
+      // The year that just ended has been fully seen; new badges at the
+      // fresh year then mark only the cards that newly appeared.
+      game.markActionsSeen(visibleBefore);
+      if (game.character.alive) {
+        this.lastNews = news;
+        this.showNotice(
+          `ปี ${yearBefore} จบแล้ว เข้าสู่ปี ${game.gameState.year} ที่อายุ ${game.age} ปี`,
+        );
+      }
     }
     this.persist();
     this.render();
@@ -618,8 +709,17 @@ export class App {
     const birthYear = new Date().getFullYear();
     this.game = createLife(setup, seed, birthYear, GAME_CONTENT);
     this.price = new BtcPrice(this.pendingRateUsd ?? FALLBACK_RATE_USD, birthYear, seed);
+    // The opening menu is baseline, not news: badges start at the first
+    // milestone that unlocks later (e.g. the cafe at age 6).
+    this.markCurrentActionsSeen(this.game);
     this.persist();
     this.render();
+  }
+
+  /** Marks every action currently offered as seen, for the "ใหม่" badges. */
+  private markCurrentActionsSeen(game: Game): void {
+    const ids = game.availableActions(ACTIONS).map((action) => action.id);
+    game.markActionsSeen(ids);
   }
 
   /** Pulls the live rate, falls back to cache, then to a fixed estimate. */

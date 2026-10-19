@@ -60,6 +60,8 @@ interface SavePayload {
     tree: Person[];
     chronicle: string[];
   };
+  /** Phase 5 "new action" badges; optional so older files keep loading. */
+  seenActions?: string[];
   timeline: TimelineEntry[];
 }
 
@@ -110,6 +112,7 @@ export function serializeGame(state: GameState, baseRateUsd: number): string {
       tree: state.dynasty.tree.map((person) => ({ ...person })),
       chronicle: [...state.dynasty.chronicle],
     },
+    seenActions: [...state.seenActions],
     timeline: [...state.timeline],
   };
   return JSON.stringify(payload);
@@ -230,6 +233,9 @@ export function deserializeGame(json: string): LoadedGame | null {
       committedTime: data.committedTime,
       timeline: data.timeline ?? [],
       dynasty: readDynasty(data.dynasty),
+      seenActions: Array.isArray(data.seenActions)
+        ? data.seenActions.filter((id): id is string => typeof id === "string")
+        : [],
     });
 
     return { state, baseRateUsd: data.baseRateUsd };

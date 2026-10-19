@@ -216,4 +216,24 @@ describe("SaveManager", () => {
     expect(dynasty?.tree).toEqual([]);
     expect(dynasty?.chronicle).toEqual([]);
   });
+
+  test("seenActions round trips and defaults to empty on older saves", () => {
+    const original = makeState();
+    original.seenActions.push("enroll-university", "date");
+
+    const restored = deserializeGame(serializeGame(original, 1));
+    expect(restored?.state.seenActions).toEqual(["enroll-university", "date"]);
+
+    // Pre-Phase-5 files carry no seenActions; the badges start over.
+    const payload = JSON.parse(serializeGame(makeState(), 1)) as Record<string, unknown>;
+    delete payload.seenActions;
+    const legacy = deserializeGame(JSON.stringify(payload));
+    expect(legacy?.state.seenActions).toEqual([]);
+
+    // A corrupted shape is filtered instead of crashing the load.
+    const broken = JSON.parse(serializeGame(makeState(), 1)) as Record<string, unknown>;
+    broken.seenActions = ["study", 42, null];
+    const filtered = deserializeGame(JSON.stringify(broken));
+    expect(filtered?.state.seenActions).toEqual(["study"]);
+  });
 });

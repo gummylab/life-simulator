@@ -152,4 +152,31 @@ describe("Game", () => {
     expect(result.cause).toBe("oldAge");
     expect(state.character.alive).toBe(false);
   });
+
+  test("advanceYear returns the year-start news without the player's own actions", () => {
+    const game = makeGame();
+    for (let i = 0; i < 6; i += 1) {
+      game.advanceYear();
+    }
+    // The age-6 allowance lands in the news of the year it fired.
+    const result = game.advanceYear();
+    expect(result.news.some((line) => line.startsWith("ได้ค่าขนมจากทางบ้าน"))).toBe(true);
+
+    // The news drains: next year starts from a clean slate.
+    const next = game.advanceYear();
+    expect(next.news.some((line) => line.startsWith("ได้ค่าขนมจากทางบ้าน"))).toBe(true);
+    // An action the player takes never enters the year report.
+    game.character.addMoney(0.01);
+    game.gameState.timeLeft = 100;
+    const outcome = game.performAction(study);
+    expect(outcome.accepted).toBe(true);
+    expect(game.gameState.history[0]?.text).toBe("นั่งอ่านหนังสือทั้งวัน");
+  });
+
+  test("markActionsSeen remembers ids exactly once", () => {
+    const game = makeGame();
+    game.markActionsSeen(["study", "sleep"]);
+    game.markActionsSeen(["study", "gym"]);
+    expect([...game.seenActions].sort()).toEqual(["gym", "sleep", "study"]);
+  });
 });

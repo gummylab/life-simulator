@@ -5,6 +5,7 @@ import { GameState } from "../src/core/model/GameState";
 import { Character } from "../src/core/model/Character";
 import { serializeGame } from "../src/core/save/SaveManager";
 import { persistSave } from "../src/infra/localSave";
+import { makeCharacter } from "./helpers";
 
 /**
  * End-to-end smoke tests for the lit-based UI: the happy-dom document
@@ -35,6 +36,8 @@ function startLife(root: HTMLElement, givenName: string): void {
 
 beforeEach(() => {
   domWindow.localStorage.clear();
+  // Skip the first-run welcome screen; it has its own test below.
+  domWindow.localStorage.setItem("life-simulator.onboarded", "1");
   document.body.innerHTML = "";
 });
 
@@ -227,5 +230,190 @@ describe("App smoke test on happy-dom", () => {
     // The USD figure comes from the drifted price model; only the shape matters here.
     expect(captured).toMatch(/\$[\d,]+/);
     expect(captured).toContain("ครู");
+  });
+});
+
+describe("Phase 5 turn-loop UX", () => {
+  test("the first visit shows the welcome screen before the birth setup", () => {
+    domWindow.localStorage.removeItem("life-simulator.onboarded");
+    const root = mount();
+
+    expect(root.textContent).toContain("ยินดีต้อนรับสู่ life simulator");
+    expect(root.querySelector("#birth-setup")).toBeNull();
+
+    root.querySelector<HTMLButtonElement>("[data-do='welcome-done']")?.click();
+    expect(root.querySelector("#birth-setup")).not.toBeNull();
+    expect(domWindow.localStorage.getItem("life-simulator.onboarded")).toBe("1");
+
+    // The second visit skips the welcome and lands on the setup.
+    document.body.innerHTML = "";
+    const again = mount();
+    expect(again.textContent).not.toContain("ยินดีต้อนรับ");
+    expect(again.querySelector("#birth-setup")).not.toBeNull();
+  });
+
+  test("advancing the year shows the year report card with the allowance", () => {
+    const root = mount();
+    startLife(root, "ทดสอบ");
+
+    // Under six there is no allowance, so the report card stays hidden.
+    expect(root.querySelector(".news")).toBeNull();
+
+    for (let i = 0; i < 7; i += 1) {
+      root.querySelector<HTMLButtonElement>("[data-do='advance']")?.click();
+    }
+    const report = root.querySelector(".news");
+    expect(report).not.toBeNull();
+    expect(report?.textContent).toContain("สิ่งที่เกิดขึ้นในปี");
+    expect(report?.textContent).toContain("ค่าขนม");
+  });
+
+  test("the stat strip expands into full bars and collapses again", () => {
+    const root = mount();
+    startLife(root, "ทดสอบ");
+
+    const strip = root.querySelector<HTMLButtonElement>("[data-do='toggle-stats']");
+    expect(strip).not.toBeNull();
+    // Collapsed by default: pills, no bars.
+    expect(strip?.getAttribute("aria-expanded")).toBe("false");
+    expect(root.querySelectorAll(".stats .stat")).toHaveLength(0);
+
+    strip?.click();
+    expect(root.querySelectorAll(".stats .stat")).toHaveLength(4);
+    root.querySelector<HTMLButtonElement>("[data-do='toggle-stats']")?.click();
+    expect(root.querySelectorAll(".stats .stat")).toHaveLength(0);
+  });
+
+  test("non-age blocked cards hide behind a disclosure, age cards stay", () => {
+    // Money=0 blocks every paid action at age 16; those go behind the
+    // disclosure while the age-gated ones stay visible as the showFrom
+    // promise (16 sees university greyed out until 17).
+    const character = makeCharacter({ birthYear: 2026, money: 0 });
+    const state = new GameState({
+      year: 2042,
+      seed: 7,
+      rngState: 7,
+      character,
+      founderFamilyName: "หนึ่งชีวิต",
+      timeLeft: 60,
+    });
+    persistSave(serializeGame(state, 100_000));
+
+    const root = mount();
+    // Paid cards (คาเฟ่, นวด) are money-blocked at balance zero.
+    const toggle = root.querySelector<HTMLButtonElement>("[data-do='toggle-blocked']");
+    expect(toggle).not.toBeNull();
+    expect(toggle?.textContent).toContain("ยังทำไม่ได้");
+    // Hidden until expanded.
+    expect(root.querySelector("[data-do='cafe-movie']")).toBeNull();
+
+    toggle?.click();
+    const revealed = root.querySelector<HTMLButtonElement>("[data-do='cafe-movie']");
+    expect(revealed).not.toBeNull();
+    expect(revealed?.disabled).toBe(true);
+    expect(revealed?.textContent).toContain("เงินไม่พอ");
+    // The university card is age-blocked and must stay visible without
+    // opening the disclosure.
+    expect(root.querySelector("[data-do='enroll-university']")).not.toBeNull();
+
+    root.querySelector<HTMLButtonElement>("[data-do='toggle-blocked']")?.click();
+    expect(root.querySelector("[data-do='cafe-movie']")).toBeNull();
+  });
+
+  test("the jobs panel collapses to a status row and expands on tap", () => {
+    // Employed at the best job for her age: nothing left to apply for,
+    // so the panel rests as one row.
+    const character = makeCharacter({ birthYear: 2026, money: 0.01 });
+    character.job.id = "part-time-shop";
+    character.job.level = 5;
+    character.job.years = 2;
+    const state = new GameState({
+      year: 2041,
+      seed: 7,
+      rngState: 7,
+      character,
+      founderFamilyName: "หนึ่งชีวิต",
+      timeLeft: 60,
+    });
+    persistSave(serializeGame(state, 100_000));
+
+    const root = mount();
+    expect(root.querySelector(".status-row")).not.toBeNull();
+    expect(root.textContent).toContain("พนักงานพาร์ตไทม์ร้านสะดวกซื้อ ระดับ 5");
+    expect(root.querySelector("[data-do='toggle-jobs']")).toBeNull();
+
+    root.querySelector<HTMLButtonElement>("[data-do='toggle-career']")?.click();
+    expect(root.querySelector(".status-row")).toBeNull();
+    expect(root.querySelector("[data-do='toggle-jobs']")).not.toBeNull();
+    expect(root.querySelector("[data-do='quit-job']")).not.toBeNull();
+  });
+
+  test("a card newly unlocked this life wears the new badge for one year", () => {
+    // Spare cash keeps the cafe card runnable so the badge itself is
+    // what the assertion reads, not a money block.
+    const character = makeCharacter({ birthYear: 2026, money: 0.01 });
+    const state = new GameState({
+      year: 2031,
+      seed: 7,
+      rngState: 7,
+      character,
+      founderFamilyName: "หนึ่งชีวิต",
+      timeLeft: 60,
+      // Everything the age-5 menu offered is already known; the cafe
+      // card unlocks at six and must therefore wear the badge.
+      seenActions: [
+        "toys",
+        "story",
+        "rest",
+        "sleep",
+        "study",
+        "exercise",
+        "read",
+        "movie",
+      ],
+    });
+    persistSave(serializeGame(state, 100_000));
+
+    const root = mount();
+    // Age 5: the cafe card is not visible yet.
+    expect(root.querySelector("[data-do='cafe-movie']")).toBeNull();
+
+    root.querySelector<HTMLButtonElement>("[data-do='advance']")?.click();
+    const cafe = root.querySelector("[data-do='cafe-movie']");
+    expect(cafe?.textContent).toContain("ใหม่");
+    // A card she has seen since birth wears no badge.
+    const rest = root.querySelector("[data-do='rest']");
+    expect(rest?.textContent).not.toContain("ใหม่");
+
+    // Finishing the year clears the badge.
+    root.querySelector<HTMLButtonElement>("[data-do='advance']")?.click();
+    expect(root.querySelector("[data-do='cafe-movie']")?.textContent).not.toContain("ใหม่");
+  });
+
+  test("the year button tracks the time left in the current year", () => {
+    const root = mount();
+    startLife(root, "ทดสอบ");
+
+    // Age 0 budget is 60 and sleep costs 40, so the hint counts down.
+    const hint = () => root.querySelector(".advance-hint")?.textContent ?? "";
+    expect(hint()).toContain("ยังใช้เวลาไม่หมด");
+    expect(hint()).toContain("(60)");
+
+    root.querySelector<HTMLButtonElement>("[data-do='sleep']")?.click();
+    expect(hint()).toContain("(20)");
+  });
+
+  test("the BTC rate note lives on the more tab, not on the HUD", async () => {
+    const root = mount();
+    startLife(root, "ทดสอบ");
+    for (let tick = 0; tick < 10; tick += 1) {
+      await Promise.resolve();
+    }
+
+    expect(root.querySelector(".hud")?.textContent).not.toContain("1 BTC");
+    root.querySelector<HTMLButtonElement>("[data-do='tab:more']")?.click();
+    const rate = root.querySelector(".menu-rate");
+    expect(rate).not.toBeNull();
+    expect(rate?.textContent).toContain("1 BTC");
   });
 });

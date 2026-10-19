@@ -1,4 +1,4 @@
-import { html, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import type { Character } from "../core/model/Character";
 import { STAT_KEYS } from "../core/model/StatBlock";
 import { ENERGY_MAX } from "../core/config";
@@ -7,7 +7,21 @@ import { icon, STAT_ICONS } from "./icons";
 import { STAT_LABELS } from "./stats";
 import { formatUsd } from "./format";
 
-/** Top card of the game screen: identity, money, vitals and life stats. */
+/** Bar color by value: red below 30, amber below 60, calm green above. */
+function statTone(value: number): string {
+  if (value < 30) return "low";
+  if (value < 60) return "mid";
+  return "";
+}
+
+/**
+ * Compact top card (Phase 5): identity chips, money, the two decision
+ * vitals (time and energy gate every action) and a one-line stat strip
+ * that expands into the full bars on tap. The BTC rate note lives on the
+ * more tab now: it never changes a decision, so it does not spend HUD
+ * space. The first action card must fit on a 375x667 screen without
+ * scrolling, so every row here earns its height.
+ */
 export class HudView {
   constructor(
     private readonly character: Character,
@@ -16,9 +30,10 @@ export class HudView {
     private readonly timeLeft: number,
     private readonly timeBudget: number,
     private readonly rateUsd: number,
-    private readonly rateNote: string,
     /** Thai school-stage line, e.g. "ชั้นมัธยมปีที่ 3"; empty when not studying. */
     private readonly stageLabel = "",
+    /** Whether the stat strip is expanded into full bars. */
+    private readonly statsExpanded = false,
   ) {}
 
   render(): TemplateResult {
@@ -30,15 +45,22 @@ export class HudView {
     );
     const energyPct = Math.max(0, Math.round((character.energy / ENERGY_MAX) * 100));
 
-    const stats = STAT_KEYS.map(
-      (key) => html`
+    const bars = STAT_KEYS.map((key) => {
+      const value = character.stats.get(key);
+      return html`
         <div class="stat">
           <span class="stat-label">${icon(STAT_ICONS[key], 13)}${STAT_LABELS[key]}</span>
           <span class="stat-bar"
-            ><span class="stat-fill" style="width: ${character.stats.get(key)}%"></span
+            ><span class="stat-fill ${statTone(value)}" style="width: ${value}%"></span
           ></span>
-          <span class="stat-value">${character.stats.get(key)}</span>
+          <span class="stat-value">${value}</span>
         </div>
+      `;
+    });
+
+    const pills = STAT_KEYS.map(
+      (key) => html`
+        <span class="stat-pill">${icon(STAT_ICONS[key], 13)}${character.stats.get(key)}</span>
       `,
     );
 
@@ -46,25 +68,20 @@ export class HudView {
     // Dollars lead because even four decimals of BTC read poorly at a
     // glance; the full eight decimals live in the life summary.
     const fiat = formatUsd(character.money * this.rateUsd);
-    const rate = formatUsd(this.rateUsd);
 
     return html`
       <header class="hud">
-        <div class="hud-top">
-          <span class="hud-title">life simulator <span class="hud-by">by onlygummy</span></span>
-          <span class="chip">${icon("CalendarDays", 13)}ปี ${this.year}</span>
-        </div>
-
         <div class="hud-line">
           <strong class="hud-name">${character.name}</strong>
           <span class="chip">${icon("Cake", 13)}อายุ ${this.age} ปี</span>
+          <span class="chip">${icon("CalendarDays", 13)}ปี ${this.year}</span>
           ${this.stageLabel
             ? html`<span class="chip">${icon("GraduationCap", 13)}${this.stageLabel}</span>`
             : ""}
         </div>
 
         <div class="hud-money">
-          ${icon("Coins", 16)}
+          ${icon("Coins", 15)}
           <strong>${fiat}</strong>
           <span class="muted">(${btc} ${WORLD.currency})</span>
         </div>
@@ -88,9 +105,15 @@ export class HudView {
           </div>
         </div>
 
-        <div class="stats">${stats}</div>
-
-        <div class="hud-rate muted">1 ${WORLD.currency} ≈ ${rate} · ${this.rateNote}</div>
+        <button
+          type="button"
+          class="stat-strip"
+          data-do="toggle-stats"
+          aria-expanded=${String(this.statsExpanded)}
+        >
+          ${pills}${icon(this.statsExpanded ? "ChevronUp" : "ChevronDown", 14)}
+        </button>
+        ${this.statsExpanded ? html`<div class="stats">${bars}</div>` : nothing}
       </header>
     `;
   }
