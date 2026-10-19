@@ -8,6 +8,31 @@ export interface TimelineEntry {
   readonly text: string;
 }
 
+/** A rendered choice of a pending event, ready to show and to replay. */
+export interface PendingEventOption {
+  /** Thai label on the choice button. */
+  readonly label: string;
+  /** Timeline line recorded once the player picks this option. */
+  readonly result: string;
+}
+
+/**
+ * An event that asked the player a question and is waiting for an answer
+ * (ADR 0017).
+ *
+ * Only rendered strings are stored: the event id points back at the content
+ * for the effects, while the text is frozen so a reload shows exactly the
+ * same question and the same result line it would have shown before. That
+ * keeps the save deterministic without duplicating game rules into it.
+ */
+export interface PendingEvent {
+  readonly eventId: string;
+  /** Rendered situation line, tokens already resolved. */
+  readonly text: string;
+  /** Rendered choices in content order. */
+  readonly options: readonly PendingEventOption[];
+}
+
 /**
  * Dynasty-wide facts that survive across lives (Phase 3).
  *
@@ -42,6 +67,8 @@ export interface GameStateSpec {
   readonly dynasty?: DynastyState;
   /** Action ids already offered this life; older files default to empty. */
   readonly seenActions?: readonly string[];
+  /** Event waiting for an answer; older files default to none. */
+  readonly pendingEvent?: PendingEvent | null;
 }
 
 /**
@@ -61,6 +88,8 @@ export class GameState {
   dynasty: DynastyState;
   /** Action ids the player has already been offered this life (Phase 5). */
   seenActions: string[];
+  /** Event waiting for an answer, or null when the year had none (ADR 0017). */
+  pendingEvent: PendingEvent | null;
   private readonly entries: TimelineEntry[] = [];
 
   constructor(spec: GameStateSpec) {
@@ -72,6 +101,7 @@ export class GameState {
     this.timeLeft = spec.timeLeft;
     this.committedTime = spec.committedTime ?? 0;
     this.seenActions = [...(spec.seenActions ?? [])];
+    this.pendingEvent = spec.pendingEvent ?? null;
     this.dynasty = {
       generation: spec.dynasty?.generation ?? 1,
       tree: [...(spec.dynasty?.tree ?? [])],

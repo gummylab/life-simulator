@@ -1,4 +1,4 @@
-import { GameState } from "./model/GameState";
+import { GameState, type PendingEvent } from "./model/GameState";
 import type { Character, DeathCause } from "./model/Character";
 import type { PlayerAction, SpecialAction } from "./model/PlayerAction";
 import type { GameContent } from "./model/GameContent";
@@ -14,6 +14,7 @@ import {
   allowanceForAge,
   ENERGY_BLOCK_THRESHOLD,
   ENERGY_YEAR_RESTORE,
+  LOOKS_FOR_DATING,
   timeBudgetForAge,
 } from "./config";
 
@@ -29,6 +30,7 @@ export type ActionBlockReason =
   | "time"
   | "tired"
   | "money"
+  | "looks"
   | "partner"
   | "taken"
   | "spouse"
@@ -83,6 +85,11 @@ export class Game {
   /** World and catalog data; null when the game runs without content. */
   get gameContent(): GameContent | null {
     return this.content;
+  }
+
+  /** The event waiting for the player's answer, or null (ADR 0017). */
+  get pendingEvent(): PendingEvent | null {
+    return this.state.pendingEvent;
   }
 
   /** Thai school-stage line for the HUD, e.g. "ชั้นมัธยมปีที่ 3". */
@@ -163,7 +170,10 @@ export class Game {
       case "enroll-university":
         return this.state.character.education.enrolledUniversity ? "done" : null;
       case "date":
-        return family.partner !== null ? "taken" : null;
+        // Dating asks for a presentable appearance, so looks can be raised
+        // on purpose instead of only decaying with age (ADR 0018).
+        if (family.partner !== null) return "taken";
+        return this.state.character.stats.get("looks") < LOOKS_FOR_DATING ? "looks" : null;
       case "marry":
         if (family.partner === null) return "partner";
         return family.married ? "done" : null;
@@ -269,6 +279,30 @@ export class Game {
     this.syncRngState();
   }
 
+  /**
+   * Answers the pending event with the option the player picked. The
+   * effects come from the content (single source of truth) while the result
+   * line comes from the frozen rendered text, so a reload shows the same
+   * story it would have shown before (ADR 0017).
+   */
+  resolveEvent(index: number): boolean {
+    const pending = this.state.pendingEvent;
+    const content = this.content;
+    if (pending === null || content === null || !this.state.character.alive) {
+      return false;
+    }
+    const event = content.events.find((candidate) => candidate.id === pending.eventId);
+    const option = event?.options?.[index];
+    const rendered = pending.options[index];
+    if (option === undefined || rendered === undefined) {
+      return false;
+    }
+    this.events.applyEffects(this.state, option.effects);
+    this.state.record(rendered.result);
+    this.state.pendingEvent = null;
+    return true;
+  }
+
   /** Moves the calendar forward one year and resolves the year's systems. */
   advanceYear(): YearResult {
     this.state.year += 1;
@@ -280,10 +314,7 @@ export class Game {
       this.state.committedTime = 0;
       this.education.startYear(this.state, this.content);
       this.career.startYear(this.state, this.content);
-      const eventText = this.events.fire(this.state, this.content);
-      if (eventText !== null) {
-        this.state.record(eventText);
-      }
+      this.rollEvent(this.content);
     }
 
     this.aging.advance(character, age);
@@ -305,6 +336,29 @@ export class Game {
 
     this.syncRngState();
     return { age, died: outcome.died, cause: outcome.cause };
+  }
+
+  /**
+   * Rolls the year's event. A question still waiting for an answer expires
+   * with the year it belongs to: the player spent that year without
+   * deciding, and no new event rolls in its place, so a choice can never be
+   * buried under a newer one (ADR 0017).
+   */
+  private rollEvent(content: GameContent): void {
+    if (this.state.pendingEvent !== null) {
+      this.state.pendingEvent = null;
+      this.state.record("ปล่อยเรื่องที่ค้างไว้ผ่านไปโดยไม่ได้ตัดสินใจ");
+      return;
+    }
+    const fired = this.events.fire(this.state, content);
+    if (fired === null) {
+      return;
+    }
+    if (fired.options.length === 0) {
+      this.state.record(fired.text);
+      return;
+    }
+    this.state.pendingEvent = fired;
   }
 
   /** Keeps the save file in step with the generator after every random draw. */

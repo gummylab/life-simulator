@@ -1,25 +1,48 @@
 import type { SeededRng } from "../rng/SeededRng";
 import type { GameContent } from "../model/GameContent";
-import type { EventCondition, LifeEvent } from "../model/LifeEvent";
-import type { GameState } from "../model/GameState";
+import type { EventCondition, EventEffects, LifeEvent } from "../model/LifeEvent";
+import type { GameState, PendingEvent } from "../model/GameState";
 import { EVENT_YEAR_CHANCE } from "../config";
 import { stageAt } from "./EducationSystem";
 
+/** Values a bracketed token in event text resolves to. */
+interface Tokens {
+  readonly school: string;
+  readonly place: string;
+  readonly currency: string;
+  readonly name: string;
+}
+
+/** Replaces every known token in one string. Pure, so it can be reused. */
+function fill(text: string, tokens: Tokens): string {
+  return text
+    .replaceAll("{school}", tokens.school)
+    .replaceAll("{place}", tokens.place)
+    .replaceAll("{currency}", tokens.currency)
+    .replaceAll("{name}", tokens.name);
+}
+
 /**
- * Picks at most one weighted yearly event and applies it.
+ * Picks at most one weighted yearly event and returns it ready to show.
  *
  * Conditions are plain data (never functions) so a test can scan every
  * event for typos, and rendered text resolves every token before the
  * player sees it — braces never leak into the timeline.
+ *
+ * An event with `options` is returned without applying anything: the player
+ * answers it on the year screen and `Game` applies the chosen option
+ * (ADR 0017). An event without options happens right away, exactly as it
+ * always has.
  */
 export class EventEngine {
   constructor(private readonly rng: SeededRng) {}
 
   /**
-   * Rolls the yearly chance, picks one eligible event by weight, applies
-   * its effects and returns the rendered Thai text. Null when nothing fires.
+   * Rolls the yearly chance, picks one eligible event by weight and renders
+   * it. Null when nothing fires. The option-less events apply their effects
+   * here; the ones that ask a question are left for the player to answer.
    */
-  fire(state: GameState, content: GameContent): string | null {
+  fire(state: GameState, content: GameContent): PendingEvent | null {
     if (content.events.length === 0) return null;
     if (!this.rng.chance(EVENT_YEAR_CHANCE)) return null;
 
@@ -27,8 +50,19 @@ export class EventEngine {
     if (eligible.length === 0) return null;
 
     const event = this.weightedPick(eligible);
-    this.applyEffects(state, event);
-    return this.render(event, state, content);
+    // One place draw per fired event: every token in the prompt and in
+    // every option resolves to the same town.
+    const tokens = this.tokensFor(state, content);
+    const options = (event.options ?? []).map((option) => ({
+      label: fill(option.text, tokens),
+      result: fill(option.resultText, tokens),
+    }));
+
+    if (options.length === 0) {
+      this.applyEffects(state, event.effects);
+    }
+
+    return { eventId: event.id, text: fill(event.text, tokens), options };
   }
 
   /** Whether an event's condition matches the character right now. */
@@ -55,27 +89,30 @@ export class EventEngine {
 
   /** Replaces {school} {place} {currency} {name} with world or state data. */
   render(event: LifeEvent, state: GameState, content: GameContent): string {
-    const character = state.character;
-    const education = character.education;
-    const school =
-      education.universitySchool ?? education.secondarySchool ?? education.primarySchool ?? "โรงเรียน";
-    const place = content.places.length > 0 ? (this.rng.pick(content.places) ?? "เมือง") : "เมือง";
-    return event.text
-      .replaceAll("{school}", school)
-      .replaceAll("{place}", place)
-      .replaceAll("{currency}", content.currency)
-      .replaceAll("{name}", character.givenName);
+    return fill(event.text, this.tokensFor(state, content));
   }
 
-  private applyEffects(state: GameState, event: LifeEvent): void {
+  /** Writes a stat and money delta onto the character. Never below zero. */
+  applyEffects(state: GameState, effects: EventEffects): void {
     const character = state.character;
-    const { stats, money } = event.effects;
-    if (stats !== undefined) {
-      character.stats.changeMany(stats);
+    if (effects.stats !== undefined) {
+      character.stats.changeMany(effects.stats);
     }
-    if (money !== undefined) {
-      character.addMoney(money);
+    if (effects.money !== undefined) {
+      character.addMoney(effects.money);
     }
+  }
+
+  private tokensFor(state: GameState, content: GameContent): Tokens {
+    const character = state.character;
+    const education = character.education;
+    return {
+      school:
+        education.universitySchool ?? education.secondarySchool ?? education.primarySchool ?? "โรงเรียน",
+      place: content.places.length > 0 ? (this.rng.pick(content.places) ?? "เมือง") : "เมือง",
+      currency: content.currency,
+      name: character.givenName,
+    };
   }
 
   /** Weighted draw: heavier events fire more often, order stays stable. */

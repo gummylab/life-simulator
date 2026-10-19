@@ -1,5 +1,11 @@
 import { Character, type DeathCause, type Gender } from "../model/Character";
-import { GameState, type DynastyState, type TimelineEntry } from "../model/GameState";
+import {
+  GameState,
+  type DynastyState,
+  type PendingEvent,
+  type PendingEventOption,
+  type TimelineEntry,
+} from "../model/GameState";
 import type { Person } from "../model/Person";
 
 /**
@@ -9,6 +15,9 @@ import type { Person } from "../model/Person";
  * (browser storage lives in src/infra/localSave.ts). Bump SAVE_VERSION
  * whenever the payload shape changes; older files refuse to load and the
  * game starts fresh instead of crashing on missing fields.
+ *
+ * Fields added after the first release stay optional and fall back to a
+ * safe default, so a live save on GitHub Pages never dies of a new feature.
  */
 
 export const SAVE_VERSION = 1;
@@ -62,6 +71,8 @@ interface SavePayload {
   };
   /** Phase 5 "new action" badges; optional so older files keep loading. */
   seenActions?: string[];
+  /** Phase 8 event waiting for an answer; optional for the same reason. */
+  pendingEvent?: PendingEvent | null;
   timeline: TimelineEntry[];
 }
 
@@ -113,6 +124,14 @@ export function serializeGame(state: GameState, baseRateUsd: number): string {
       chronicle: [...state.dynasty.chronicle],
     },
     seenActions: [...state.seenActions],
+    pendingEvent:
+      state.pendingEvent === null
+        ? null
+        : {
+            eventId: state.pendingEvent.eventId,
+            text: state.pendingEvent.text,
+            options: state.pendingEvent.options.map((option) => ({ ...option })),
+          },
     timeline: [...state.timeline],
   };
   return JSON.stringify(payload);
@@ -149,6 +168,39 @@ function readDynasty(value: unknown): DynastyState | undefined {
     tree: candidate.tree.filter(isPerson),
     chronicle: candidate.chronicle.filter((line): line is string => typeof line === "string"),
   };
+}
+
+function isRenderedOption(value: unknown): value is PendingEventOption {
+  const candidate = value as Partial<PendingEventOption> | null;
+  return (
+    candidate !== null &&
+    typeof candidate === "object" &&
+    typeof candidate.label === "string" &&
+    typeof candidate.result === "string"
+  );
+}
+
+/**
+ * Accepts a pending event only when it still has at least one usable
+ * choice; anything else is dropped, which simply costs the player one
+ * event instead of breaking the load.
+ */
+function readPendingEvent(value: unknown): PendingEvent | null {
+  const candidate = value as Partial<PendingEvent> | null;
+  if (
+    candidate === null ||
+    typeof candidate !== "object" ||
+    typeof candidate.eventId !== "string" ||
+    typeof candidate.text !== "string" ||
+    !Array.isArray(candidate.options)
+  ) {
+    return null;
+  }
+  const options = candidate.options.filter(isRenderedOption).map((option) => ({ ...option }));
+  if (options.length === 0) {
+    return null;
+  }
+  return { eventId: candidate.eventId, text: candidate.text, options };
 }
 
 function isDeathCause(value: unknown): value is DeathCause | null {
@@ -236,6 +288,7 @@ export function deserializeGame(json: string): LoadedGame | null {
       seenActions: Array.isArray(data.seenActions)
         ? data.seenActions.filter((id): id is string => typeof id === "string")
         : [],
+      pendingEvent: readPendingEvent(data.pendingEvent),
     });
 
     return { state, baseRateUsd: data.baseRateUsd };

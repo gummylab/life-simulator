@@ -54,7 +54,7 @@ export class YearFeedView {
     return html`
       <section class="panel feed">
         <h2>${icon("Newspaper", 18)}บันทึกปี ${this.year}</h2>
-        <ul class="feed-list">${lines}</ul>
+        <ul class="feed-list" aria-live="polite">${lines}</ul>
         ${groups.length > COLLAPSED_LINES
           ? html`<button type="button" class="ghost" data-do="toggle-feed">
               ${this.expanded ? "ซ่อนรายการเก่า" : `ดูทั้งปี (${groups.length})`}

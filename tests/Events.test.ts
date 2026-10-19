@@ -25,6 +25,19 @@ const CONDITION_KEYS = [
   "minMoney",
 ];
 
+/** Every event that asks the player something, for the choice-shaped scans. */
+const CHOICE_EVENTS = EVENTS.filter(
+  (event) => event.options !== undefined && event.options.length > 0,
+);
+
+/** All texts a player can see for one event: prompt, labels and results. */
+function textsOf(event: (typeof EVENTS)[number]): string[] {
+  return [
+    event.text,
+    ...(event.options ?? []).flatMap((option) => [option.text, option.resultText]),
+  ];
+}
+
 describe("event library", () => {
   test("has between 40 and 60 events", () => {
     expect(EVENTS.length).toBeGreaterThanOrEqual(40);
@@ -63,20 +76,30 @@ describe("event library", () => {
       if (event.effects.money !== undefined) {
         expect(typeof event.effects.money).toBe("number");
       }
+      for (const option of event.options ?? []) {
+        for (const key of Object.keys(option.effects.stats ?? {})) {
+          expect(STAT_KEYS).toContain(key as StatKey);
+        }
+        if (option.effects.money !== undefined) {
+          expect(typeof option.effects.money).toBe("number");
+        }
+      }
     }
   });
 
   test("weights are positive and texts are Thai with only known tokens", () => {
     for (const event of EVENTS) {
       expect(event.weight).toBeGreaterThan(0);
-      expect(event.text.length).toBeGreaterThan(0);
-      // Any braces in the text must come from the known token list.
-      const braces = event.text.match(/\{[^}]*\}/g) ?? [];
-      for (const token of braces) {
-        expect(KNOWN_TOKENS).toContain(token);
+      for (const text of textsOf(event)) {
+        expect(text.length).toBeGreaterThan(0);
+        // Any braces in a text must come from the known token list.
+        const braces = text.match(/\{[^}]*\}/g) ?? [];
+        for (const token of braces) {
+          expect(KNOWN_TOKENS).toContain(token);
+        }
+        // Text should be readable Thai, not placeholder Latin.
+        expect(text).toMatch(/[ก-๙]/);
       }
-      // Text should be readable Thai, not placeholder Latin.
-      expect(event.text).toMatch(/[ก-๙]/);
     }
   });
 
@@ -86,6 +109,31 @@ describe("event library", () => {
       if (condition?.minAge !== undefined && condition.maxAge !== undefined) {
         expect(condition.minAge).toBeLessThanOrEqual(condition.maxAge);
       }
+    }
+  });
+
+  test("choice events offer two to three real options", () => {
+    expect(CHOICE_EVENTS.length).toBeGreaterThanOrEqual(5);
+    for (const event of CHOICE_EVENTS) {
+      const options = event.options ?? [];
+      expect(options.length).toBeGreaterThanOrEqual(2);
+      expect(options.length).toBeLessThanOrEqual(3);
+      for (const option of options) {
+        expect(option.resultText.length).toBeGreaterThan(0);
+      }
+      // Two options must actually differ, or the choice is decoration.
+      const first = JSON.stringify(options[0]?.effects);
+      const differ = options.some((option) => JSON.stringify(option.effects) !== first);
+      expect(differ).toBe(true);
+    }
+  });
+
+  test("a choice event carries no separate effects of its own", () => {
+    // The engine skips event.effects when options exist, so content must
+    // not put a second, hidden set of consequences next to the choices.
+    for (const event of CHOICE_EVENTS) {
+      expect(Object.keys(event.effects.stats ?? {})).toEqual([]);
+      expect(event.effects.money).toBeUndefined();
     }
   });
 });

@@ -26,6 +26,7 @@ export const ACTION_GROUP_OF: Readonly<Record<string, string>> = {
   sleep: "selfcare",
   "cafe-movie": "selfcare",
   massage: "selfcare",
+  makeover: "selfcare",
   trip: "selfcare",
   exercise: "selfcare",
   toys: "growth",

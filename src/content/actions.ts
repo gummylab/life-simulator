@@ -79,6 +79,16 @@ export const ACTIONS: readonly PlayerAction[] = [
     effects: { money: -0.001, stats: { happiness: 10, health: 2 } },
   },
   {
+    id: "makeover",
+    label: "ดูแลตัวเองที่ร้านเสริมสวย",
+    minAge: 12,
+    maxAge: 120,
+    timeCost: 25,
+    energyRestore: 20,
+    resultText: "ดูแลตัวเองที่ร้านเสริมสวย มั่นใจขึ้นเยอะ",
+    effects: { money: -0.0006, stats: { looks: 6, happiness: 3 } },
+  },
+  {
     id: "study",
     label: "อ่านหนังสือ",
     minAge: 6,

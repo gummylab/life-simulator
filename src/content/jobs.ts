@@ -49,6 +49,8 @@ export const JOBS: readonly JobSpec[] = [
     educationRequired: "secondary",
     salary: SALARY["sales"],
     timeCost: 40,
+    // Selling face to face needs a presentable look (ADR 0018).
+    statRequirement: { stat: "looks", min: 45 },
   },
   {
     id: "technician",

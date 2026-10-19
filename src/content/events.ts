@@ -23,7 +23,19 @@ export const EVENTS: readonly LifeEvent[] = [
     text: "เป็นหวัดหนักอยู่เป็นสัปดาห์ ต้องนอนพักหลายวัน",
     weight: 4,
     condition: { minAge: 3 },
-    effects: { stats: { health: -4, happiness: -2 } },
+    effects: {},
+    options: [
+      {
+        text: "นอนพักให้เต็มที่จนหายดี",
+        effects: { stats: { health: -2, happiness: 1 } },
+        resultText: "เลือกนอนพักจนหายดี ร่างกายกลับมาแข็งแรงอีกครั้ง",
+      },
+      {
+        text: "ฝืนทำงานต่อทั้งที่ยังป่วย",
+        effects: { stats: { health: -5, happiness: -2, smarts: 1 } },
+        resultText: "ฝืนทำงานทั้งที่ยังไม่หาย ร่างกายเลยทรุดลง",
+      },
+    ],
   },
   {
     id: "health-gym",
@@ -96,7 +108,19 @@ export const EVENTS: readonly LifeEvent[] = [
     text: "ถูกหลอกให้โอน{currency}ไปลงทุนออนไลน์ สูญเงินไปพอสมควร",
     weight: 2,
     condition: { minAge: 16 },
-    effects: { money: -0.0002, stats: { happiness: -4 } },
+    effects: {},
+    options: [
+      {
+        text: "ยอมรับแล้วเรียนรู้จากมัน",
+        effects: { stats: { happiness: -4, smarts: 2 } },
+        resultText: "ยอมรับว่าถูกหลอก แล้วจำไว้เป็นบทเรียน",
+      },
+      {
+        text: "ไปแจ้งความเพื่อตามเอาคืน",
+        effects: { money: -0.00005, stats: { happiness: -2, smarts: 3 } },
+        resultText: "ไปแจ้งความ เสียเวลาไปหลายวันแต่ได้บทเรียนราคาแพง",
+      },
+    ],
   },
   {
     id: "money-bonus",
@@ -120,7 +144,19 @@ export const EVENTS: readonly LifeEvent[] = [
     text: "โทรศัพท์พังต้องซื้อเครื่องใหม่ เสียเงินไปเยอะ",
     weight: 3,
     condition: { minAge: 12 },
-    effects: { money: -0.00015 },
+    effects: {},
+    options: [
+      {
+        text: "ซื้อเครื่องใหม่ไปเลย",
+        effects: { money: -0.00015 },
+        resultText: "ซื้อเครื่องใหม่ เงินหายไปก้อนหนึ่งแต่ใช้งานได้สบายใจ",
+      },
+      {
+        text: "ซ่อมเครื่องเดิมใช้ไปก่อน",
+        effects: { money: -0.00005, stats: { happiness: -2 } },
+        resultText: "เลือกซ่อมเครื่องเดิม ประหยัดเงินแต่ต้องทนใช้ของเก่า",
+      },
+    ],
   },
   {
     id: "money-lottery",
@@ -169,7 +205,7 @@ export const EVENTS: readonly LifeEvent[] = [
     category: "relationship",
     text: "{name}ทำเซอร์ไพร์สวันครบรอบด้วยของขวัญที่คิดมาอย่างดี",
     weight: 3,
-    condition: { married: true },
+    condition: { married: true, minHappiness: 40 },
     effects: { stats: { happiness: 5 } },
   },
   {
@@ -178,7 +214,19 @@ export const EVENTS: readonly LifeEvent[] = [
     text: "ทะเลาะกับคู่ครองเรื่องงานบ้าน ต้องนั่งคุยกันอย่างจริงจัง",
     weight: 3,
     condition: { married: true },
-    effects: { stats: { happiness: -4 } },
+    effects: {},
+    options: [
+      {
+        text: "นั่งคุยกันจนเข้าใจ",
+        effects: { stats: { happiness: 1, health: -1 } },
+        resultText: "คุยกับคู่ครองกันจนเข้าใจ ต่างคนต่างเหนื่อยแต่จบดี",
+      },
+      {
+        text: "ปล่อยให้เรื่องนี้ผ่านไป",
+        effects: { stats: { happiness: -4, health: 1 } },
+        resultText: "ปล่อยเรื่องทะเลาะค้างไว้ ความห่างค่อย ๆ ก่อตัวขึ้น",
+      },
+    ],
   },
   {
     id: "rel-parents-proud",
@@ -220,14 +268,26 @@ export const EVENTS: readonly LifeEvent[] = [
     text: "ต้องทำโอทีติดต่อกันหลายคืน ร่างกายทรุดหนัก",
     weight: 3,
     condition: { employed: true },
-    effects: { stats: { health: -4, happiness: -3 } },
+    effects: {},
+    options: [
+      {
+        text: "รับโอทีเพื่อความก้าวหน้า",
+        effects: { money: 0.0002, stats: { health: -4, happiness: -3 } },
+        resultText: "ทำโอทีติดต่อกันหลายคืน ได้เงินเพิ่มแต่ร่างกายทรุด",
+      },
+      {
+        text: "ขอเลิกตรงเวลาเพื่อพักผ่อน",
+        effects: { stats: { health: 1, happiness: -1 } },
+        resultText: "ขอเลิกตรงเวลา ร่างกายปลอดภัยแต่แอบกังวลเรื่องงาน",
+      },
+    ],
   },
   {
     id: "career-newskill",
     category: "career",
     text: "เรียนคอร์สออนไลน์เพิ่มทักษะใหม่ ประยุกต์ใช้กับงานได้ทันที",
     weight: 2,
-    condition: { employed: true, minAge: 18 },
+    condition: { employed: true, minAge: 18, minHappiness: 45 },
     effects: { stats: { smarts: 3, happiness: 2 } },
   },
   {
@@ -268,7 +328,19 @@ export const EVENTS: readonly LifeEvent[] = [
     text: "เห็นคนอื่นมีงานทำกันหมด รู้สึกน้อยใจอยู่ลึก ๆ",
     weight: 2,
     condition: { employed: false, minAge: 18 },
-    effects: { stats: { happiness: -3 } },
+    effects: {},
+    options: [
+      {
+        text: "ใช้เวลาว่างฝึกทักษะเพิ่ม",
+        effects: { stats: { smarts: 3, happiness: -1 } },
+        resultText: "ใช้เวลาว่างฝึกทักษะเพิ่มแทนการนั่งน้อยใจ",
+      },
+      {
+        text: "ปล่อยใจไปตามเรื่อง",
+        effects: { stats: { happiness: -3 } },
+        resultText: "ปล่อยให้ความน้อยใจกัดกินไปเรื่อย ๆ",
+      },
+    ],
   },
 
   /* ----------------------------------------------------- การศึกษา */
@@ -286,7 +358,19 @@ export const EVENTS: readonly LifeEvent[] = [
     text: "สอบตกวิชาคณิตศาสตร์ ต้องเรียนซ่อมหลังเลิกเรียน",
     weight: 3,
     condition: { student: true },
-    effects: { stats: { smarts: -1, happiness: -3 } },
+    effects: {},
+    options: [
+      {
+        text: "ตั้งใจเรียนซ่อมจนตามทัน",
+        effects: { stats: { smarts: 3, happiness: -2 } },
+        resultText: "เข้าเรียนซ่อมทุกวันจนตามเพื่อนทัน",
+      },
+      {
+        text: "ยอมแพ้แล้วปล่อยวิชานั้นไป",
+        effects: { stats: { smarts: -2, happiness: -1 } },
+        resultText: "ปล่อยวิชานั้นไป แล้วเริ่มหลุดจากบทเรียนอื่นตามมา",
+      },
+    ],
   },
   {
     id: "edu-library",
@@ -360,7 +444,19 @@ export const EVENTS: readonly LifeEvent[] = [
     text: "รถเฉี่ยวขณะข้ามถนน โชคดีที่ไม่เป็นอะไรมาก",
     weight: 2,
     condition: { minAge: 10 },
-    effects: { stats: { health: -6, happiness: -3 } },
+    effects: {},
+    options: [
+      {
+        text: "ไปตรวจร่างกายให้แน่ใจ",
+        effects: { money: -0.00008, stats: { health: 1, happiness: 1 } },
+        resultText: "ไปตรวจร่างกายที่คลินิก ใจชื้นขึ้นที่ไม่มีอะไรหนัก",
+      },
+      {
+        text: "คิดว่าไม่เป็นไรแล้วไปต่อ",
+        effects: { stats: { health: -3, happiness: -2 } },
+        resultText: "คิดว่าไม่เป็นไร แต่ปวดเมื่อยอยู่หลายเดือน",
+      },
+    ],
   },
   {
     id: "acc-phone",

@@ -16,6 +16,7 @@ const REASON_LABELS: Record<ActionBlockReason, string> = {
   time: "เวลาไม่พอ",
   tired: "เหนื่อยเกินไป ต้องพักก่อน",
   money: "เงินไม่พอ",
+  looks: "รูปลักษณ์ยังไม่พอ",
   partner: "ยังไม่มีคนรัก",
   taken: "มีคนรักอยู่แล้ว",
   spouse: "ต้องแต่งงานก่อน",

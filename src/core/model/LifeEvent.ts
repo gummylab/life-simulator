@@ -25,17 +25,36 @@ export interface EventCondition {
   readonly minMoney?: number;
 }
 
-/** Stat deltas and a BTC delta applied when the event fires. */
+/** Stat deltas and a BTC delta applied when an event fires. */
 export interface EventEffects {
   readonly stats?: Partial<Record<StatKey, number>>;
   readonly money?: number;
 }
 
 /**
+ * One choice a player can pick when the event asks them something.
+ *
+ * Options carry effects and their own result line; they never carry a
+ * condition, so the choice the player sees is always the choice that is
+ * available. Effects stay plain data for the same reason conditions do:
+ * a test can scan every option for typos.
+ */
+export interface EventOption {
+  /** Thai label on the choice button. */
+  readonly text: string;
+  /** Applied when the player picks this option. */
+  readonly effects: EventEffects;
+  /** Timeline line recorded after the choice. */
+  readonly resultText: string;
+}
+
+/**
  * One yearly random event.
  *
- * The text may contain tokens ({school}, {place}, {currency}) that the
- * engine replaces from the world pack before the player sees it.
+ * The text may contain tokens ({school}, {place}, {currency}, {name}) that
+ * the engine replaces from the world pack before the player sees it.
+ * An event without options simply happens; one with options waits for the
+ * player on the year screen (ADR 0017).
  */
 export interface LifeEvent {
   readonly id: string;
@@ -44,4 +63,6 @@ export interface LifeEvent {
   readonly weight: number;
   readonly condition?: EventCondition;
   readonly effects: EventEffects;
+  /** Choices offered when the event asks the player to decide. */
+  readonly options?: readonly EventOption[];
 }

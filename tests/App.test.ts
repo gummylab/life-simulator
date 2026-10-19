@@ -547,8 +547,7 @@ describe("redesigned navigation and decisions (Phase 7)", () => {
     expect(root.textContent).toContain("ยังไม่มีบุตร");
   });
 
-  test("the biography folds the whole life log behind one tap", () => {
-    const character = new Character({
+  test("the biography folds the whole life log behind one tap", () => {    const character = new Character({
       givenName: "อีธาน",
       familyName: "มิลเลอร์",
       gender: "male",
@@ -576,5 +575,39 @@ describe("redesigned navigation and decisions (Phase 7)", () => {
     expect(root.querySelector(".timeline")).toBeNull();
     root.querySelector<HTMLButtonElement>("[data-do='toggle-summary-log']")?.click();
     expect(root.querySelector(".timeline")?.textContent).toContain("ลืมตาดูโลกที่กรีนฟิลด์");
+  });
+});
+
+describe("yearly questions (Phase 8)", () => {
+  test("a pending question shows on the life tab and its answer lands in the feed", () => {
+    const character = makeCharacter({ birthYear: 2006, money: 0.01 });
+    const state = new GameState({
+      year: 2026,
+      seed: 3,
+      rngState: 3,
+      character,
+      founderFamilyName: "หนึ่งชีวิต",
+      timeLeft: 60,
+      pendingEvent: {
+        eventId: "health-cold",
+        text: "เป็นหวัดหนักอยู่เป็นสัปดาห์",
+        options: [
+          { label: "นอนพักให้เต็มที่", result: "เลือกนอนพักจนหายดี" },
+          { label: "ฝืนทำงานต่อ", result: "ฝืนทำงานทั้งที่ยังไม่หาย" },
+        ],
+      },
+    });
+    persistSave(serializeGame(state, 100_000));
+
+    const root = mount();
+    const card = root.querySelector(".event-card");
+    expect(card?.textContent).toContain("เรื่องที่ต้องตัดสินใจ");
+    expect(card?.textContent).toContain("นอนพักให้เต็มที่");
+    // The question does not lock the rest of the year's screen.
+    expect(root.querySelector(".action")).not.toBeNull();
+
+    root.querySelector<HTMLButtonElement>("[data-do='event:0']")?.click();
+    expect(root.querySelector(".event-card")).toBeNull();
+    expect(root.querySelector(".feed")?.textContent).toContain("เลือกนอนพักจนหายดี");
   });
 });

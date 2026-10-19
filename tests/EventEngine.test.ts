@@ -24,13 +24,11 @@ describe("EventEngine", () => {
   });
 
   test("the same seed always renders the same event", () => {
-    const render = (): string | null => {
+    const fire = () => {
       const game = makeContentGame({ age: 20, money: 0.5 });
       return new EventEngine(new SeededRng(99)).fire(game.gameState, GAME_CONTENT);
     };
-    const first = render();
-    const second = render();
-    expect(first).toBe(second);
+    expect(fire()?.text).toBe(fire()?.text);
   });
 
   test("a year where nothing qualifies fires no event instead of crashing", () => {
@@ -44,7 +42,7 @@ describe("EventEngine", () => {
       );
       // Null is the expected outcome here; a rendered line would mean some
       // event has no age gate at all, which the pool is not supposed to do.
-      expect(result === null || typeof result === "string").toBe(true);
+      expect(result === null || typeof result.text === "string").toBe(true);
     }
     // An empty pool is also legal (contentless game) and fires nothing.
     const empty = new EventEngine(new SeededRng(1)).fire(game.gameState, {
@@ -87,12 +85,12 @@ describe("EventEngine", () => {
     let fired = 0;
     for (let i = 0; i < 60; i += 1) {
       const game = makeContentGame({ age: 20, money: 0.5 });
-      const text = engine.fire(game.gameState, { ...GAME_CONTENT, events: [light, heavy] });
-      if (text === null) {
+      const firedEvent = engine.fire(game.gameState, { ...GAME_CONTENT, events: [light, heavy] });
+      if (firedEvent === null) {
         continue; // the yearly chance declined an event this year
       }
       fired += 1;
-      if (text === "หนัก") {
+      if (firedEvent.text === "หนัก") {
         heavyCount += 1;
       }
     }
@@ -120,11 +118,11 @@ describe("EventEngine", () => {
       const game = makeContentGame({ age: 20, money: 0.5, stats: { happiness: 50 } });
       const engine = new EventEngine(new SeededRng(777 + attempt));
       const before = game.character.money;
-      const text = engine.fire(game.gameState, custom);
-      if (text === null) {
+      const firedEvent = engine.fire(game.gameState, custom);
+      if (firedEvent === null) {
         continue;
       }
-      expect(text).toContain("BTC");
+      expect(firedEvent.text).toContain("BTC");
       expect(game.character.money).toBeCloseTo(before + 0.001, 10);
       expect(game.character.stats.get("happiness")).toBe(45);
       landed = true;

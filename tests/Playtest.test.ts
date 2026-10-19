@@ -152,6 +152,13 @@ function doAction(root: HTMLElement, options: PlayOptions, flags: PlayFlags): bo
   }
   assertMenuSorted(root);
 
+  // --- The year's question comes before anything else ----------------
+  // A real player answers it; skipping it would silently forfeit the
+  // event and hold back every later one.
+  if (clickEnabled(root, "[data-do^='event:']")) {
+    return true;
+  }
+
   // --- Player policy -------------------------------------------------
   if (clickEnabled(root, "[data-do='enroll-university']")) {
     return true;

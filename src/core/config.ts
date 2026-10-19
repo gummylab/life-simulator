@@ -20,6 +20,9 @@ export const ENERGY_YEAR_RESTORE = 20;
 /** Below this, tiring actions are blocked and rest stays open (Q44). */
 export const ENERGY_BLOCK_THRESHOLD = 30;
 
+/** Looks needed to date; raised by the makeover action (ADR 0018). */
+export const LOOKS_FOR_DATING = 45;
+
 /** Money the family sends each year while the character is young, in BTC. */
 const ALLOWANCE_BANDS: readonly { readonly maxAge: number; readonly btc: number }[] = [
   { maxAge: 5, btc: 0 },

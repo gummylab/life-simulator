@@ -24,6 +24,7 @@ import { MoreMenuView } from "./MoreMenuView";
 import { OnboardingView } from "./OnboardingView";
 import { SuccessionView } from "./SuccessionView";
 import { TimelineView } from "./TimelineView";
+import { YearEventView } from "./YearEventView";
 import { YearFeedView } from "./YearFeedView";
 import { icon, type IconName } from "./icons";
 
@@ -110,7 +111,7 @@ export class App {
       // First visit, no save yet: teach before the birth setup appears.
       this.view = "welcome";
       render(
-        this.deviceTemplate(html`<main class="content">
+        this.deviceTemplate(html`<main class="content" tabindex="-1">
           ${new OnboardingView("welcome").render()}
         </main>`),
         this.root,
@@ -130,7 +131,7 @@ export class App {
     this.view = "main";
     this.showAllJobs = false;
     this.clearArmedConfirm();
-    const body = html`<main class="content">${new BirthSetupView().render()}</main>`;
+    const body = html`<main class="content" tabindex="-1">${new BirthSetupView().render()}</main>`;
     render(this.deviceTemplate(body), this.root);
   }
 
@@ -140,16 +141,19 @@ export class App {
     if (!game) {
       return;
     }
-    const key = `${this.tab}|${this.view}`;
+    const key = `${this.tab}|${this.view}|${game.character.alive ? "alive" : "dead"}`;
     const changed = key !== this.screenKey;
     this.screenKey = key;
     render(this.deviceTemplate(this.gameScreen(game)), this.root);
     if (changed) {
       // Scroll position belongs to a screen, not to the app: without this
       // a swipe down the action list would carry over to the family tab.
+      // Focus follows the new screen for the same reason, and so a screen
+      // reader starts reading where the player just landed.
       const content = this.root.querySelector<HTMLElement>(".content");
       if (content) {
         content.scrollTop = 0;
+        content.focus({ preventScroll: true });
       }
     }
   }
@@ -168,12 +172,26 @@ export class App {
           @click=${this.onCommand}
           @submit=${this.onSubmit}
           @change=${this.onChange}
+          @keydown=${this.onKeyDown}
         >
           ${body}
         </div>
       </div>
     `;
   }
+
+  /**
+   * Escape leaves a sub-screen. Buttons already answer Enter and Space by
+   * being buttons, so this is the only key the game has to handle itself.
+   */
+  private readonly onKeyDown = (event: KeyboardEvent): void => {
+    if (event.key !== "Escape" || this.view === "main") {
+      return;
+    }
+    event.preventDefault();
+    this.view = "main";
+    this.render();
+  };
 
   /** The active tab's content, any sub-screen, and the bottom dock. */
   private gameScreen(game: Game): TemplateResult {
@@ -183,7 +201,7 @@ export class App {
 
     const sub = this.subScreen(game, rateUsd);
     if (sub) {
-      return html`<main class="content">${sub}</main>
+      return html`<main class="content" tabindex="-1">${sub}</main>
         ${this.dock(character.alive, false)}`;
     }
 
@@ -204,6 +222,7 @@ export class App {
         reason: game.actionBlockReason(action),
       }));
       tabContent = html`
+        ${game.pendingEvent ? new YearEventView(game.pendingEvent).render() : nothing}
         ${new YearFeedView(state.year, state.timeline, this.showFullYearFeed).render()}
         ${new MenuView(menuEntries, rateUsd, game.seenActions, this.showBlockedActions).render()}
         ${this.careerTemplate(game, rateUsd)}
@@ -230,7 +249,7 @@ export class App {
 
     return html`
       ${hud}
-      <main class="content">${tabContent}</main>
+      <main class="content" tabindex="-1">${tabContent}</main>
       ${this.dock(character.alive, this.tab === "life")}
     `;
   }
@@ -415,6 +434,15 @@ export class App {
 
     if (command === "copy-bio") {
       void this.copyBiography();
+      return;
+    }
+
+    // Answering the pending event: the choice is logged into this year.
+    if (command.startsWith("event:")) {
+      if (game.resolveEvent(Number(command.slice(6)))) {
+        this.persist();
+        this.render();
+      }
       return;
     }
 

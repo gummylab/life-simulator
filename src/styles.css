@@ -353,6 +353,62 @@ button,
   border-left: 3px solid var(--accent);
 }
 
+/* --------------------------------------------------------- event question */
+
+/* The year's question: the one card that asks something back, so it wears
+   the accent border and sits above the feed. */
+.event-card {
+  border: 1px solid var(--accent);
+  background: linear-gradient(180deg, var(--accent-soft), transparent 140%);
+}
+
+.event-text {
+  margin: 0 0 14px;
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
+
+.event-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.choice-button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.choice-button:active {
+  border-color: var(--accent);
+}
+
+.choice-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
 .feed-list {
   list-style: none;
   margin: 0;
