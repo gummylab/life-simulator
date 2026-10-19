@@ -1,6 +1,7 @@
 import { html, nothing, render, type TemplateResult } from "lit";
 import { Game, type YearResult } from "../core/Game";
-import { createLife } from "../core/GameFactory";
+import { continueLife, createLife } from "../core/GameFactory";
+import { planSuccession, type SuccessionPlan } from "../core/systems/SuccessionSystem";
 import { BtcPrice } from "../core/economy/BtcPrice";
 import type { Gender } from "../core/model/Character";
 import type { BirthSetup } from "../core/model/BirthSetup";
@@ -14,11 +15,13 @@ import { FALLBACK_RATE_USD, resolveBtcQuote } from "../infra/CoinGecko";
 import { clearSave, persistSave, readSave } from "../infra/localSave";
 import { BirthSetupView } from "./BirthSetupView";
 import { CareerView } from "./CareerView";
+import { GameOverView } from "./GameOverView";
 import { HudView } from "./HudView";
 import { LifeSummaryView } from "./LifeSummaryView";
 import { MenuView } from "./MenuView";
 import { MoreMenuView } from "./MoreMenuView";
 import { OnboardingView } from "./OnboardingView";
+import { SuccessionView } from "./SuccessionView";
 import { TimelineView } from "./TimelineView";
 import { icon, type IconName } from "./icons";
 
@@ -29,7 +32,10 @@ const RATE_REFRESH_MS = 5 * 60 * 1000;
 type Tab = "act" | "log" | "more";
 
 /** Full sub-screens opened from the more tab's menu list. */
-type View = "main" | "help" | "restart";
+type View = "main" | "help" | "restart" | "succession" | "gameover" | "chronicle";
+
+/** Which destructive button is armed for its second confirming tap. */
+type ArmedConfirm = "restart" | "delete-save" | null;
 
 const TABS: readonly { id: Tab; label: string; iconName: IconName }[] = [
   { id: "act", label: "กิจกรรม", iconName: "Gamepad2" },
@@ -64,8 +70,8 @@ export class App {
   private tab: Tab = "act";
   /** Sub-screen above the tab content; "main" means the tab itself. */
   private view: View = "main";
-  /** Armed state of the restart button: wiped on the second tap. */
-  private confirmRestart = false;
+  /** Armed destructive button: wiped or confirmed on the second tap. */
+  private armedConfirm: ArmedConfirm = null;
   private confirmTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly root: HTMLElement) {}
@@ -80,6 +86,11 @@ export class App {
         resumed.state.character.birthYear,
         resumed.state.seed,
       );
+      // A refresh mid-succession must land back on the succession screen:
+      // the plan is derived from the frozen save, so it always matches.
+      if (!resumed.state.character.alive && this.successionPlan() !== null) {
+        this.view = "succession";
+      }
       this.render();
     } else {
       this.renderSetup();
@@ -94,7 +105,7 @@ export class App {
     this.price = null;
     this.tab = "act";
     this.view = "main";
-    this.clearRestartConfirm();
+    this.clearArmedConfirm();
     const body = html`<main class="content">${new BirthSetupView().render()}</main>`;
     render(this.deviceTemplate(body), this.root);
   }
@@ -120,7 +131,14 @@ export class App {
           <span class="device-time">${CLOCK.format(new Date())}</span>
           <span class="device-icons">${icon("Wifi", 14)}${icon("BatteryFull", 15)}</span>
         </div>
-        <div class="screen" @click=${this.onCommand} @submit=${this.onSubmit}>${body}</div>
+        <div
+          class="screen"
+          @click=${this.onCommand}
+          @submit=${this.onSubmit}
+          @change=${this.onChange}
+        >
+          ${body}
+        </div>
       </div>
     `;
   }
@@ -138,9 +156,38 @@ export class App {
         ${this.dock(character.alive, false)}`;
     }
     if (this.view === "restart") {
-      const summary = new LifeSummaryView(state, rateUsd, this.confirmRestart);
+      const summary = new LifeSummaryView(
+        state,
+        rateUsd,
+        this.armedConfirm === "restart",
+        this.deadEndState(),
+      );
       return html`${this.toast()}
         <main class="content">${summary.render()}</main>
+        ${this.dock(character.alive, false)}`;
+    }
+    if (this.view === "succession") {
+      const plan = this.successionPlan();
+      const view = new SuccessionView(
+        plan?.chronicle ?? state.dynasty.chronicle,
+        plan,
+        rateUsd,
+        plan ? plan.rebirthYear - state.year : 0,
+      );
+      return html`${this.toast()}
+        <main class="content">${view.render()}</main>
+        ${this.dock(character.alive, false)}`;
+    }
+    if (this.view === "gameover") {
+      const view = new GameOverView(state, rateUsd, this.armedConfirm === "restart");
+      return html`${this.toast()}
+        <main class="content">${view.render()}</main>
+        ${this.dock(character.alive, false)}`;
+    }
+    if (this.view === "chronicle") {
+      const view = new SuccessionView(state.dynasty.chronicle, null, rateUsd, 0);
+      return html`${this.toast()}
+        <main class="content">${view.render()}</main>
         ${this.dock(character.alive, false)}`;
     }
 
@@ -148,8 +195,10 @@ export class App {
     if (this.tab === "log") {
       tabContent = new TimelineView(state.history).render();
     } else if (this.tab === "more") {
-      // A menu list; future save export/import rows join it (Task 3.5).
-      tabContent = new MoreMenuView().render();
+      tabContent = new MoreMenuView(
+        state.dynasty.chronicle.length,
+        this.armedConfirm === "delete-save",
+      ).render();
     } else if (character.alive) {
       // Education line + jobs panel sit above the plain activity menu.
       tabContent = html`
@@ -162,7 +211,12 @@ export class App {
         ).render()}
       `;
     } else {
-      tabContent = new LifeSummaryView(state, rateUsd, this.confirmRestart).render();
+      tabContent = new LifeSummaryView(
+        state,
+        rateUsd,
+        this.armedConfirm === "restart",
+        this.deadEndState(),
+      ).render();
     }
 
     // The HUD belongs to the action tab only; the other tabs read full height.
@@ -251,9 +305,23 @@ export class App {
       return;
     }
 
-    // More tab sub-screens: how-to and the restart farewell.
-    if (command === "open-help" || command === "open-restart") {
-      this.view = command === "open-help" ? "help" : "restart";
+    // More tab sub-screens: how-to, farewell, family record, end state.
+    if (
+      command === "open-help" ||
+      command === "open-restart" ||
+      command === "open-succession" ||
+      command === "open-gameover" ||
+      command === "open-chronicle"
+    ) {
+      if (command === "open-help") {
+        this.view = "help";
+      } else if (command === "open-restart") {
+        this.view = "restart";
+      } else if (command === "open-succession" || command === "open-chronicle") {
+        this.view = command === "open-succession" ? "succession" : "chronicle";
+      } else {
+        this.view = "gameover";
+      }
       this.render();
       return;
     }
@@ -280,13 +348,40 @@ export class App {
       return;
     }
 
-    if (command === "restart") {
-      // Autosave is the only save, so wiping it needs a second tap.
-      if (!this.confirmRestart) {
-        this.armRestartConfirm();
+    // The heir takes over: succession needs no confirm, it loses nothing.
+    if (command === "rebirth") {
+      const plan = this.successionPlan();
+      if (plan) {
+        this.game = continueLife(plan, game.gameState, GAME_CONTENT);
+        this.tab = "act";
+        this.view = "main";
+        this.persist();
+        // Notice first: the render below picks the toast up.
+        this.showNotice(
+          `เกิดใหม่เป็น ${plan.heir.givenName} ${plan.heir.familyName} รุ่นที่ ${plan.newGeneration}`,
+        );
+        this.render();
+      }
+      return;
+    }
+
+    // Save management (Task 3.5): download, restore from file, or wipe.
+    if (command === "export-save") {
+      this.exportSave();
+      return;
+    }
+    if (command === "import-save") {
+      this.root.querySelector<HTMLInputElement>("#save-file-input")?.click();
+      return;
+    }
+
+    // Wiping the save needs a second tap, wherever the button lives.
+    if (command === "restart" || command === "delete-save") {
+      if (this.armedConfirm !== command) {
+        this.armConfirm(command);
         return;
       }
-      this.clearRestartConfirm();
+      this.clearArmedConfirm();
       clearSave();
       this.renderSetup();
       return;
@@ -368,25 +463,118 @@ export class App {
     }, 3000);
   }
 
-  /** First tap arms the restart button; it disarms itself in three seconds. */
-  private armRestartConfirm(): void {
-    this.confirmRestart = true;
+  /** First tap arms a destructive button; it disarms itself in three seconds. */
+  private armConfirm(command: Exclude<ArmedConfirm, null>): void {
+    this.armedConfirm = command;
     if (this.confirmTimer !== null) {
       clearTimeout(this.confirmTimer);
     }
     this.confirmTimer = setTimeout(() => {
-      this.confirmRestart = false;
+      this.armedConfirm = null;
       this.render();
     }, 3000);
     this.render();
   }
 
-  private clearRestartConfirm(): void {
-    this.confirmRestart = false;
+  private clearArmedConfirm(): void {
+    this.armedConfirm = null;
     if (this.confirmTimer !== null) {
       clearTimeout(this.confirmTimer);
       this.confirmTimer = null;
     }
+  }
+
+  /**
+   * The pending succession of a dead character, or null while alive or
+   * when no descendant carries the line. Seeded from the saved rng state,
+   * so every render and a refresh after saving all show the same heir.
+   */
+  private successionPlan(): SuccessionPlan | null {
+    const state = this.game?.gameState;
+    if (!state || state.character.alive) {
+      return null;
+    }
+    return planSuccession(state, GAME_CONTENT, new SeededRng(state.rngState));
+  }
+
+  /** What the death screen offers next: the heir, or the dynasty's end. */
+  private deadEndState(): "heir" | "extinct" | null {
+    const state = this.game?.gameState;
+    if (!state || state.character.alive) {
+      return null;
+    }
+    return this.successionPlan() !== null ? "heir" : "extinct";
+  }
+
+  /**
+   * Downloads the current save as a JSON file. The serialized payload is
+   * exactly what the autosave holds, so an import can restore it as is.
+   */
+  private exportSave(): void {
+    const game = this.game;
+    if (!game) {
+      return;
+    }
+    try {
+      const json = serializeGame(game.gameState, this.price?.base ?? FALLBACK_RATE_USD);
+      const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `life-simulator-${game.gameState.year}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      this.showNotice("สำรองบันทึกลงไฟล์แล้ว");
+    } catch {
+      this.showNotice("สำรองไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+    this.render();
+  }
+
+  /**
+   * Replaces the run with a chosen save file. Files that fail to parse
+   * or carry a foreign version are rejected with a note instead of
+   * clobbering the autosave.
+   */
+  private readonly onChange = (event: Event): void => {
+    const input = event.target as HTMLInputElement | null;
+    if (input?.id !== "save-file-input") {
+      return;
+    }
+    const file = input.files?.[0];
+    // Let the same file be picked again after a failed import.
+    input.value = "";
+    if (file) {
+      void this.importSaveFile(file);
+    }
+  };
+
+  private async importSaveFile(file: File): Promise<void> {
+    let imported: ReturnType<typeof deserializeGame> = null;
+    try {
+      imported = deserializeGame(await file.text());
+    } catch {
+      imported = null;
+    }
+    if (!imported) {
+      this.showNotice("ไฟล์นี้ไม่ใช่บันทึกของเกม");
+      this.render();
+      return;
+    }
+    this.game = new Game(imported.state, GAME_CONTENT);
+    this.pendingRateUsd = imported.baseRateUsd;
+    this.price = new BtcPrice(
+      imported.baseRateUsd,
+      imported.state.character.birthYear,
+      imported.state.seed,
+    );
+    this.tab = "act";
+    this.view =
+      !imported.state.character.alive && this.successionPlan() !== null
+        ? "succession"
+        : "main";
+    this.persist();
+    this.render();
+    this.showNotice("โหลดบันทึกจากไฟล์แล้ว");
   }
 
   /** Death gets its own timeline line, whoever ended the year. */

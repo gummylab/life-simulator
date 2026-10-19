@@ -21,6 +21,8 @@ export interface CharacterSpec {
   /** 0-100 fatigue meter. Defaults to full; carried across years. */
   readonly energy?: number;
   readonly stats?: Partial<Record<StatKey, number>>;
+  /** Stable person id; defaults to a name-and-year handle for determinism. */
+  readonly id?: string;
 }
 
 /**
@@ -54,6 +56,11 @@ export interface FamilyState {
 }
 
 export class Character {
+  /**
+   * Stable person id. Children link to their parent with it (ADR 0004:
+   * surnames change on marriage, so the tree cannot follow names).
+   */
+  readonly id: string;
   readonly givenName: string;
   /** Changes for a woman who marries, and for her children at birth. */
   familyName: string;
@@ -72,6 +79,7 @@ export class Character {
   readonly family: FamilyState;
 
   constructor(spec: CharacterSpec) {
+    this.id = spec.id ?? `c-${spec.birthYear}-${spec.givenName}`;
     this.givenName = spec.givenName;
     this.familyName = spec.familyName;
     this.gender = spec.gender;

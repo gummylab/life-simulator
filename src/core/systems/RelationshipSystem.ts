@@ -66,11 +66,14 @@ export class RelationshipSystem {
     const fatherName = character.gender === "male" ? character.familyName : character.family.partner.familyName;
     const given = this.rollName(content, rng, gender);
     const child: Person = {
-      id: `child-${character.family.children.length + 1}`,
+      // Ids stay unique per family line so the tree can link by id.
+      id: `child-${character.id}-${character.family.children.length + 1}`,
       givenName: given,
       familyName: fatherName,
       gender,
       birthYear: state.year,
+      // Blood links run through the player, never through a surname.
+      parentId: character.id,
     };
     character.family.children.push(child);
     state.record(`ต้อนรับบุตรคนที่ ${character.family.children.length}: ${child.givenName} ${child.familyName}`);

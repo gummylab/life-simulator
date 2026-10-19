@@ -638,6 +638,50 @@ body {
   color: var(--accent);
 }
 
+/* Small muted paragraph inside summary panels (jump note, hints) */
+.summary-note {
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+/* Family chronicle: one line per crossed generation, oldest first */
+.chronicle {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+.chronicle li::before {
+  content: "•";
+  margin-right: 8px;
+  color: var(--accent);
+}
+
+/* The heir preview on the succession screen: who takes over next */
+.heir-card {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+
+.heir-card p {
+  margin: 0 0 6px;
+}
+
+.heir-card p:last-child {
+  margin-bottom: 0;
+}
+
 /* Shared button behavior with a light game feel */
 button {
   transition:

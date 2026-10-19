@@ -1,5 +1,5 @@
 import { Character, type DeathCause, type Gender } from "../model/Character";
-import { GameState, type TimelineEntry } from "../model/GameState";
+import { GameState, type DynastyState, type TimelineEntry } from "../model/GameState";
 import type { Person } from "../model/Person";
 
 /**
@@ -54,6 +54,12 @@ interface SavePayload {
       children: Person[];
     };
   };
+  /** Phase 3 dynasty records; optional so older files keep loading. */
+  dynasty?: {
+    generation: number;
+    tree: Person[];
+    chronicle: string[];
+  };
   timeline: TimelineEntry[];
 }
 
@@ -99,9 +105,47 @@ export function serializeGame(state: GameState, baseRateUsd: number): string {
         children: [...character.family.children],
       },
     },
+    dynasty: {
+      generation: state.dynasty.generation,
+      tree: state.dynasty.tree.map((person) => ({ ...person })),
+      chronicle: [...state.dynasty.chronicle],
+    },
     timeline: [...state.timeline],
   };
   return JSON.stringify(payload);
+}
+
+/** A tree member must at least look like a Person to be trusted. */
+function isPerson(value: unknown): value is Person {
+  const candidate = value as Partial<Person> | null;
+  return (
+    candidate !== null &&
+    typeof candidate === "object" &&
+    typeof candidate.id === "string" &&
+    typeof candidate.givenName === "string" &&
+    typeof candidate.familyName === "string" &&
+    (candidate.gender === "female" || candidate.gender === "male") &&
+    typeof candidate.birthYear === "number"
+  );
+}
+
+/** Accepts the dynasty block when well-formed, or returns a safe default. */
+function readDynasty(value: unknown): DynastyState | undefined {
+  const candidate = value as Partial<DynastyState> | null;
+  if (
+    candidate === null ||
+    typeof candidate !== "object" ||
+    typeof candidate.generation !== "number" ||
+    !Array.isArray(candidate.tree) ||
+    !Array.isArray(candidate.chronicle)
+  ) {
+    return undefined;
+  }
+  return {
+    generation: Math.max(1, Math.floor(candidate.generation)),
+    tree: candidate.tree.filter(isPerson),
+    chronicle: candidate.chronicle.filter((line): line is string => typeof line === "string"),
+  };
 }
 
 function isDeathCause(value: unknown): value is DeathCause | null {
@@ -185,6 +229,7 @@ export function deserializeGame(json: string): LoadedGame | null {
       timeLeft: data.timeLeft,
       committedTime: data.committedTime,
       timeline: data.timeline ?? [],
+      dynasty: readDynasty(data.dynasty),
     });
 
     return { state, baseRateUsd: data.baseRateUsd };

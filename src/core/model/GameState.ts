@@ -1,10 +1,26 @@
 import type { Character } from "./Character";
+import type { Person } from "./Person";
 
 /** One line in the scrolling life log. */
 export interface TimelineEntry {
   readonly year: number;
   readonly age: number;
   readonly text: string;
+}
+
+/**
+ * Dynasty-wide facts that survive across lives (Phase 3).
+ *
+ * The current character is deliberately absent: they live on GameState
+ * and get filed into the tree only when they die.
+ */
+export interface DynastyState {
+  /** 1 for the founder life, +1 on every succession. */
+  generation: number;
+  /** Every known family member except the current character. */
+  tree: Person[];
+  /** Chronicle lines of past successions, oldest first. */
+  chronicle: string[];
 }
 
 export interface GameStateSpec {
@@ -22,6 +38,8 @@ export interface GameStateSpec {
   readonly committedTime?: number;
   /** Life log restored from a save, oldest first. */
   readonly timeline?: readonly TimelineEntry[];
+  /** Restored dynasty records; a fresh founder starts at generation 1. */
+  readonly dynasty?: DynastyState;
 }
 
 /**
@@ -38,6 +56,7 @@ export class GameState {
   founderFamilyName: string;
   timeLeft: number;
   committedTime: number;
+  dynasty: DynastyState;
   private readonly entries: TimelineEntry[] = [];
 
   constructor(spec: GameStateSpec) {
@@ -48,6 +67,11 @@ export class GameState {
     this.founderFamilyName = spec.founderFamilyName;
     this.timeLeft = spec.timeLeft;
     this.committedTime = spec.committedTime ?? 0;
+    this.dynasty = {
+      generation: spec.dynasty?.generation ?? 1,
+      tree: [...(spec.dynasty?.tree ?? [])],
+      chronicle: [...(spec.dynasty?.chronicle ?? [])],
+    };
     this.entries = [...(spec.timeline ?? [])];
   }
 

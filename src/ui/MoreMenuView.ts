@@ -9,7 +9,7 @@ interface MenuRow {
   readonly note: string;
 }
 
-/** Rows are data so future destinations (save export/import) append here. */
+/** Base rows are data so save rows append without reshaping the list. */
 const ROWS: readonly MenuRow[] = [
   {
     command: "open-help",
@@ -25,14 +25,56 @@ const ROWS: readonly MenuRow[] = [
   },
 ];
 
+/** Save management rows (Task 3.5): file round-trip plus a guarded wipe. */
+const SAVE_ROWS: readonly MenuRow[] = [
+  {
+    command: "export-save",
+    iconName: "Copy",
+    label: "สำรองบันทึก",
+    note: "ดาวน์โหลดไฟล์บันทึกเป็น JSON เก็บไว้นอกเครื่อง",
+  },
+  {
+    command: "import-save",
+    iconName: "Gem",
+    label: "นำเข้าบันทึก",
+    note: "เลือกไฟล์บันทึกที่เคยสำรองไว้เพื่อเล่นต่อ",
+  },
+];
+
 /**
  * The more tab: a plain menu list in the style of the action cards.
  * Each row opens a full sub-screen instead of expanding inline, so the
- * player always lands on one clear page per choice.
+ * player always lands on one clear page per choice. The chronicle row
+ * only appears once a succession has written something, and wiping the
+ * save follows the same two-tap confirm as the restart button.
  */
 export class MoreMenuView {
+  constructor(
+    private readonly chronicleLines: number,
+    private readonly deleteConfirmPending = false,
+  ) {}
+
   render(): TemplateResult {
-    const rows = ROWS.map(
+    const rows: MenuRow[] = [...ROWS];
+    if (this.chronicleLines > 0) {
+      rows.push({
+        command: "open-chronicle",
+        iconName: "ScrollText",
+        label: "บันทึกตระกูล",
+        note: `เรื่องราวข้ามรุ่นที่บันทึกไว้ ${this.chronicleLines} บรรทัด`,
+      });
+    }
+    rows.push(...SAVE_ROWS);
+    rows.push({
+      command: "delete-save",
+      iconName: "Unlink",
+      label: "ล้างบันทึก",
+      note: this.deleteConfirmPending
+        ? "แตะอีกครั้งเพื่อลบทุกอย่าง"
+        : "ลบบันทึกและทุกรุ่นของตระกูลบนเครื่องนี้",
+    });
+
+    const rendered = rows.map(
       (row) => html`
         <button type="button" class="menu-row" data-do=${row.command}>
           <span class="menu-row-icon">${icon(row.iconName, 20)}</span>
@@ -45,10 +87,12 @@ export class MoreMenuView {
       `,
     );
 
+    // Hidden file picker for import: App catches the change on the screen.
     return html`
       <section class="panel">
         <h2>${icon("Menu", 18)}อื่นๆ</h2>
-        <div class="menu">${rows}</div>
+        <div class="menu">${rendered}</div>
+        <input type="file" id="save-file-input" accept="application/json,.json" hidden />
       </section>
     `;
   }

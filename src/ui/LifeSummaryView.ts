@@ -1,4 +1,4 @@
-import { html, type TemplateResult } from "lit";
+import { html, nothing, type TemplateResult } from "lit";
 import type { GameState } from "../core/model/GameState";
 import { STAT_KEYS } from "../core/model/StatBlock";
 import { DEATH_CAUSE_LABELS } from "../content/deathCauses";
@@ -21,6 +21,11 @@ export class LifeSummaryView {
     private readonly state: GameState,
     private readonly rateUsd: number,
     private readonly confirmPending = false,
+    /**
+     * What the dead character leaves behind: "heir" opens the succession,
+     * "extinct" opens the dynasty's final stats. Null while still alive.
+     */
+    private readonly endState: "heir" | "extinct" | null = null,
   ) {}
 
   /** Biography as plain text, one fact per line, for the clipboard. */
@@ -101,6 +106,16 @@ export class LifeSummaryView {
         </ul>
         <ul class="final-stats">${stats}</ul>
         <div class="summary-actions">
+          ${this.endState === "heir"
+            ? html`<button type="button" class="advance" data-do="open-succession">
+                ${icon("Baby", 18)}<span>สืบตระกูล</span>
+              </button>`
+            : nothing}
+          ${this.endState === "extinct"
+            ? html`<button type="button" class="advance" data-do="open-gameover">
+                ${icon("Skull", 18)}<span>ดูสถิติตระกูล</span>
+              </button>`
+            : nothing}
           <button
             type="button"
             class="advance ${this.confirmPending ? "confirm" : ""}"
